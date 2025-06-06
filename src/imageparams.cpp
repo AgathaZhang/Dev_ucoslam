@@ -164,8 +164,13 @@ void ImageParams::readFromXMLFile(std::string filePath)
     // convert to 32 and get the first elements only
     cv::Mat mdist32;
     MDist.convertTo(mdist32, CV_32FC1);
+    
+    if (!fisheye_model) {
+        Distorsion=cv::Mat::zeros(1, 5, CV_32FC1);
+    } else {
+        Distorsion=cv::Mat::zeros(1, 4, CV_32FC1);
+    }
 
-    Distorsion=cv::Mat::zeros(1, 5, CV_32FC1);
     for (int i = 0; i < mdist32.total(); i++)
         Distorsion.ptr<float>(0)[i] = mdist32.ptr<float>(0)[i];
 

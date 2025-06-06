@@ -76,7 +76,6 @@ g2o::RobustKernel *createKernel(double delta,double weight=1){
 }
 void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp ){
 
-
     auto  toSE3Quat=[](const cv::Mat &cvT)
     {
         Eigen::Matrix<double,3,3> R;
@@ -89,13 +88,9 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
         return g2o::SE3Quat(R,t);
     };
 
-
-
-
     _params=xp;
     _InvScaleFactors.reserve(map->keyframes.front().scaleFactors.size());
     for(auto f:map->keyframes.front().scaleFactors) _InvScaleFactors.push_back(1./f);
-
 
     //Find the frames and points that will be used
     isFixedFrame.resize(map->keyframes.capacity());
@@ -104,7 +99,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
     for(auto &v:usedFramesIdOpt)v=INVALID_IDX;
     for(auto &v:usedPointsIdOpt)v=INVALID_IDX;
     for(auto &v:isFixedFrame)v=UNFIXED;
-
 
     uint32_t optiD=0;//optimizers vertex id
     if (_params.used_frames.size()==0){     //if non indicated, use all
@@ -116,7 +110,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
             usedFramesIdOpt[f]=optiD++;
     }
 
-
     if(_params.fixFirstFrame ){
         if ( usedFramesIdOpt[map->keyframes.front().idx]!=INVALID_IDX )
             isFixedFrame[map->keyframes.front().idx]=FIXED_WITHPOINTS;
@@ -127,9 +120,7 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
         if (usedFramesIdOpt[f]!=INVALID_IDX)//add it if not yet
             isFixedFrame[f]=FIXED_WITHPOINTS;
     }
-
     usedMapPoints.clear();
-
     //now, go thru points assigning ids
     for( uint32_t f=0;f<usedFramesIdOpt.size();f++){
 
@@ -154,7 +145,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
             }
         }
         //now, the markers
-
         for(auto marker:map->keyframes[f].markers){
             if ( marker_info.count(marker.id)!=0 ) continue;//marker alreday added
             auto &map_marker=map->map_markers[marker.id];
@@ -170,19 +160,15 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
         }
 
     }
-
     //finally, add
 
     Optimizer=std::make_shared<g2o::SparseOptimizer>();
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver=g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
     g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
 
-
     Optimizer->setAlgorithm(solver);
 
-
     uint32_t totalVars=0;
-
 
     ///////////////////////////////////////
     /// Add KeyFrames as vertices of the graph
@@ -200,13 +186,11 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
             Optimizer->addVertex(vSE3);
         }
     }
-
     ///////////////////////////////////////
     /// ADD MAP POINTS AND LINKS TO KEYFRAMES
     ///////////////////////////////////////
     point_edges_frameId.resize(map->map_points.capacity());
      for(auto mp_id:usedMapPoints){
-
 
         MapPoint &mp=map->map_points[mp_id];
         VertexSBAPointXYZ* vPoint = new VertexSBAPointXYZ();
@@ -273,7 +257,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
         }
     }
 
-
       ///////////////////////////////////////////
      ///compute the weight for markers-keyframes
      ///////////////////////////////////////////
@@ -303,7 +286,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
     ///  ADD MARKERS Edges
     ///////////////////////////////////////
 
-
     for(auto &m:marker_info){
         ucoslam::Marker &marker= map->map_markers.at(m.first);
         VertexSE3Expmap * vSE3 = new VertexSE3Expmap();
@@ -313,7 +295,6 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
         m.second.vertex=vSE3;
         totalVars+=6;
     }
-
 
 
     double totalMarkerWeight=0;
@@ -350,6 +331,7 @@ void GlobalOptimizerG2O::setParams(std::shared_ptr<Map> map, const ParamSet &xp 
 
         }
     }
+
     ////
     /// The Planar case:
     ///  create relationship between markers if planar case

@@ -25,6 +25,7 @@ SET(@PROJECT_NAME@_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
 
 LINK_DIRECTORIES("@CMAKE_INSTALL_PREFIX@/lib")
 SET(@PROJECT_NAME@_LIB_DIR "@CMAKE_INSTALL_PREFIX@/lib")
+set(OpenCV_DIR "/home/kilox/workspace/3rdparty/opencv-4.5.5/lib/cmake/opencv4")
 find_package(OpenCV REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 

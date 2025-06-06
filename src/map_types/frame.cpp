@@ -332,7 +332,6 @@ void Frame::fromStream(std::istream &str) {
 
     fromStream__(scaleFactors,str);
     imageParams.fromStream(str);
-
     fromStream__(jpeg_buffer,str);
 
     keypoint_kdtree.fromStream(str);

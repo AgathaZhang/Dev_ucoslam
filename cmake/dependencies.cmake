@@ -1,6 +1,7 @@
 # ----------------------------------------------------------------------------
 #   Find Dependencies
 # ----------------------------------------------------------------------------
+set(OpenCV_DIR "/home/kilox/workspace/3rdparty/opencv-4.5.5/lib/cmake/opencv4")
 find_package(OpenCV  REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 SET(UCOSLAM_REQUIRED_LIBRARIES ${OpenCV_LIBS})

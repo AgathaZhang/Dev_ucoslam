@@ -471,7 +471,7 @@ std::vector<LoopDetector::LoopClosureInfo> LoopDetector::detectLoopClosure_KeyPo
         cv::Mat rv,tv;
         vector<int> inliers;
         //NEEDS TO REWRITE CON CONSIDER SCALE IN PROJECTION ERROR
-        cout<<"PNPR="<<points3d.size()<<endl;
+        // cout<<"PNPR="<<points3d.size()<<endl;
         cv::solvePnPRansac(points3d,points2d, frame.imageParams.CameraMatrix,cv::Mat::zeros(1,5,CV_32F),rv,tv,false,100,2.5,0.99,inliers);
         _debug_msg_("  inliers="<<inliers.size());
         __UCOSLAM_TIMER_EVENT__(" pnpransac");

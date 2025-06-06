@@ -3,6 +3,7 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src )
 LINK_LIBRARIES(${PROJECT_NAME} ${UCOSLAM_REQUIRED_LIBRARIES})
 
 ADD_EXECUTABLE(ucoslam_stereo stereo_slam.cpp)
+ADD_EXECUTABLE(map_to_pcd map_to_pcd.cpp)
 ADD_EXECUTABLE(ucoslam_monocular monocular_slam.cpp   inputreader.cpp inputreader.h)
 ADD_EXECUTABLE(ucoslam_mapviewer mapviewer.cpp  )
 ADD_EXECUTABLE(ucoslam_createinitialparamfile createinitialparamfile.cpp)

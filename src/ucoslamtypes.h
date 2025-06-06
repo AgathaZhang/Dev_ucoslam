@@ -88,7 +88,7 @@ struct UCOSLAM_API Params{
     //////////////////////////////////////////
     ///Params interesting for the users
     //////////////////////////////////////////
-    bool runSequential=false;//avoid parallel processing
+    bool runSequential=true;//avoid parallel processing
     bool detectMarkers;//(dis/en)ables marker detection
     bool detectKeyPoints;//(dis/en)ables kp detection
     DescriptorTypes::Type kpDescriptorType;//keypoint descriptor employed

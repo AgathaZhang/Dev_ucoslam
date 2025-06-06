@@ -166,7 +166,6 @@ int main(int argc,char **argv){
         ucoslam::ImageParams image_params;
         ucoslam::Params params;
         cv::Mat in_image;
-
         image_params.readFromXMLFile(argv[2]);
 
         if( cml["-params"])        params.readFromYMLFile(cml("-params"));
@@ -208,13 +207,14 @@ int main(int argc,char **argv){
         //need to resize input image?
         cv::Size vsize(0,0);
         //need undistortion
-
         bool undistort=cml["-undistort"];
         vector<cv::Mat > undistMap;
-        if(undistort ){
+        if(undistort){
             if( undistMap.size()==0){
                 undistMap.resize(2);
-                cv::initUndistortRectifyMap(image_params.CameraMatrix,image_params.Distorsion,cv::Mat(),cv::Mat(),image_params.CamSize,CV_32FC1,undistMap[0],undistMap[1]);
+                // cv::initUndistortRectifyMap(image_params.CameraMatrix,image_params.Distorsion,cv::Mat(),cv::Mat(),image_params.CamSize,CV_32FC1,undistMap[0],undistMap[1]);
+                cv::fisheye::initUndistortRectifyMap(image_params.CameraMatrix, image_params.Distorsion, cv::Mat::eye(3, 3, CV_64F), image_params.CameraMatrix, 
+                                         image_params.CamSize, CV_32FC1, undistMap[0],undistMap[1]);
             }
             image_params.Distorsion.setTo(cv::Scalar::all(0));
         }
@@ -223,7 +223,7 @@ int main(int argc,char **argv){
 
         if (cml["-slam"]){
             Slam.readFromFile(cml("-slam"));
-             vcap.set(CV_CAP_PROP_POS_FRAMES,Slam.getLastProcessedFrame());
+            vcap.set(CV_CAP_PROP_POS_FRAMES,Slam.getLastProcessedFrame());
             vcap.retrieve(in_image);
             vcap.set(CV_CAP_PROP_POS_FRAMES,Slam.getLastProcessedFrame());
             vcap.retrieve(in_image);
@@ -255,19 +255,16 @@ int main(int argc,char **argv){
 
             //image undistortion (if required)
             if(undistort ){               
-                cv::remap(in_image,auxImage,undistMap[0],undistMap[1],cv::INTER_CUBIC);
+                cv::remap(in_image,auxImage,undistMap[0],undistMap[1], cv::INTER_LINEAR);
                 in_image=auxImage;
                 image_params.Distorsion.setTo(cv::Scalar::all(0));
             }
 
-
             int currentFrameIndex = vcap.getNextFrameIndex()-1;
 
-            cv::imwrite("image-"+std::to_string(currentFrameIndex)+".jpg",in_image);
             Fps.start();
             camPose_c2g=Slam.process(in_image, image_params,currentFrameIndex);
             Fps.stop();
-
 
             TimerDraw.start();
             //            Slam.drawMatches(in_image);

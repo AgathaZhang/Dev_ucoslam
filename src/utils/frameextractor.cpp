@@ -242,6 +242,29 @@ void FrameExtractor::process(const cv::Mat &image, const ImageParams &ip,Frame &
     extractFrame(InputImages[0],frame,frameseq_idx);
 }
 
+/**
+ * @brief 预处理输入图像，通过调整大小和必要时转换为灰度图。
+ * 
+ * @param scaleFactor 缩放因子，用于调整图像大小。如果缩放因子接近1，则图像不会被调整大小。
+ * @param im1 第一个输入图像（cv::Mat）。其大小必须与 `ip.CamSize` 中指定的大小匹配。
+ * @param ip 与输入图像相关联的图像参数（ImageParams）。
+ * @param im2 第二个输入图像（cv::Mat），可选。如果提供，其大小也必须与 `ip.CamSize` 中指定的大小匹配。
+ * 
+ * @details 
+ * - 函数确保输入图像与预期大小（`ip.CamSize`）匹配。
+ * - 如果图像有3个通道（例如RGB），则将其转换为灰度图。
+ * - 根据提供的 `scaleFactor` 调整图像大小。如果执行调整大小，函数确保新尺寸具有零填充（宽度为4的倍数，高度为偶数）。
+ * - 调整大小后的图像及其相关参数存储在 `InputImages` 向量中。
+ * - 如果不需要调整大小（scaleFactor接近1），则直接使用原始图像及参数。
+ * 
+ * @note 
+ * - 函数支持处理一张或两张图像。
+ * - 高度和宽度的缩放因子以浮点数对的形式存储在 `scaleFactor` 中。
+ * 
+ * @warning 
+ * - 确保 `im1` 和 `im2`（如果提供）与 `ip.CamSize` 中指定的大小匹配。
+ * - 代码中存在潜在的错误，即 `InputImages[1].ip_resized` 被赋值为 `InputImages[2].ip_org`，如果 `InputImages` 没有第三个元素，可能会导致未定义行为。
+ */
 void FrameExtractor::preprocessImages(float scaleFactor,const cv::Mat &im1,const ImageParams &ip,const cv::Mat &im2){
 
     assert(im1.size()==ip.CamSize) ;
