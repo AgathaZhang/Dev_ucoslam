@@ -32,7 +32,7 @@ namespace ucoslam{
         cv::Mat CameraMatrix;
         //  distortion matrix
         cv::Mat Distorsion;
-        // size of the image
+        //  size of the image
         cv::Size CamSize;
 
 

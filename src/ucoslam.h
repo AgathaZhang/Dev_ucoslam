@@ -47,30 +47,30 @@ public:
     void clear();
 
     //returns system params
-    static Params  & getParams() ;
+    static Params & getParams() ;
 
 
-    //Feeds the system with a new image and the parameters of the camera it has been processed with. The final
-    //parameter is the index of the sequence
-    //Returns the camera pose estimated. The pose is the transform moving points from the global reference sytem to the camera reference ssytem
+    // Feeds the system with a new image and the parameters of the camera it has been processed with.
+    // The final parameter is the index of the sequence
+    // Returns the camera pose estimated. The pose is the transform moving points from the global reference sytem to the camera reference ssytem
     cv::Mat process( cv::Mat &in_image,const ImageParams &ip,uint32_t frameseq_idx);
     cv::Mat processStereo( cv::Mat &left_image,const cv::Mat &right_image,const ImageParams &ip,uint32_t frameseq_idx);
     cv::Mat processRGBD( cv::Mat &in_image,const cv::Mat & depth,const ImageParams &ip,uint32_t frameseq_idx);
 
     //Reset the current frame pose. Use it to start tracking in a known map
-     void resetTracker();
+    void resetTracker();
 
     //sets the system mode
     void setMode(MODES mode);
 
     //sets the system in lost mode
-   // void resetCurrentPose();
+    // void resetCurrentPose();
 
     //returns the number of the last processed framed
     uint32_t getLastProcessedFrame()const;
 
 
-    // Saves the current state of the system to a file so that it can be recovered later. It is only safe if the system is in sequential mode
+    //Saves the current state of the system to a file so that it can be recovered later. It is only safe if the system is in sequential mode
     void saveToFile(std::string filepath);
     //Loads the state of the system from a file
     void readFromFile(std::string filepath);
@@ -100,10 +100,10 @@ public:
 
 
     //will update the internal parameters.Not all parameters can be changed
-    void updateParams(const  Params &p);
+    void updateParams(const Params &p);
 
 private:
-    void *impl;
+    void *impl;         // 内部私有指针成员 void* impl
 
 };
 }

@@ -120,7 +120,7 @@ private:
     std::map<uint32_t,uint32_t > youngKeyFrames;
     Se3Transform _lastAddedKFPose;
     bool bigChangeHasHappen=false;
-    std::shared_ptr<BaseLoopDetector> _TheLoopDetector;
+    std::shared_ptr<BaseLoopDetector> _TheLoopDetector; // 回环探测器
     LoopDetector::LoopClosureInfo _LoopClosureInfo;
     uint32_t _lastAddedKeyFrame=std::numeric_limits<uint32_t>::max();
     bool _hasMapBeenScaled=false;

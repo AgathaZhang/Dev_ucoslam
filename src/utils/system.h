@@ -47,6 +47,8 @@ public:
      * @param map a pointer to the map being used. It can be an empty map or an already created one
      * @param params controlling the system behaviuor
      * @param vocabulary optional path to the dictionary BOW. Without it, relocalization is not yet possible.
+     * @param mdetector optional pointer to a marker detector. If not set, the default ArucoMarkerDetector will be used
+     * mdetector 可选的 ArUco 标记检测器实例（用于 marker 识别辅助定位）
      */
 
     void setParams(std::shared_ptr<Map> map, const  ucoslam::Params &params, const std::string &vocabulary="",std::shared_ptr<MarkerDetector> mdetector=nullptr);
@@ -55,29 +57,29 @@ public:
     void clear();
 
     //returns system params
-    static Params  & getParams() ;
+    static Params & getParams() ;
 
 
     /**
      * @brief process the input image and returns (if possible) the camera location
      * @param in_image input monocular image
      * @param ip parameters of the camera being used
-     * @param frameseq_idx  number identifing the image. It is normally the sequence id
+     * @param frameseq_idx number identifing the image. It is normally the sequence id
      * @param depth optional depth image if using a RGBD camera
      * @param R_image optional monocular image if using a stereo camera
      * @return return a 4x4 transform matrix indicating the transform from the global reference system to the current camera reference system
      */
-    cv::Mat process(  cv::Mat &in_image,const ImageParams &ip,uint32_t frameseq_idx, const cv::Mat & depth=cv::Mat(), const cv::Mat &R_image=cv::Mat());
+    cv::Mat process( cv::Mat &in_image,const ImageParams &ip,uint32_t frameseq_idx, const cv::Mat & depth=cv::Mat(), const cv::Mat &R_image=cv::Mat());
 
 
     //Reset the current frame pose. Use it to start tracking in a known map
-     void resetTracker();
+    void resetTracker();
 
     //sets the system mode
     void setMode(MODES mode);
 
     //sets the system in lost mode
-   // void resetCurrentPose();
+    //void resetCurrentPose();
 
     //returns the number of the last processed framed
     uint32_t getLastProcessedFrame()const;
@@ -114,13 +116,17 @@ private:
     //obfuscate start
     friend class DebugTest;
     pair<cv::Mat,cv::Mat> preprocessDataUnlicensed(const cv::Mat &in_image, ImageParams &ip,const     cv::Mat &R_image );
-
-    uint64_t getSignature(bool print=false)const;
+                            /* 预处理数据 没有执照的 */
+    uint64_t getSignature(bool print=false)const;/* 获取签名 */
     void  createFrameExtractor();
 
     //! \brief Estimate current pose using either aruco or the database
     //! pose_out is invalid if the pose is not correcly estimated. If correct estimation, the currentKeyFrame is also indicated.
     //! if keyFrame==-1 value, then a new keyframe should be added
+    // 使用aruco或数据库估计当前姿势
+    // 如果姿势没有被正确估计，那么姿势out是无效的。
+    // 如果估计正确，还会显示currentKeyFrame。
+    // 如果keyFrame==-1的值，那么应该添加一个新的关键帧
     bool relocalize(Frame &f, se3 &pose_f2g_out ) ;
     struct kp_reloc_solution{
         se3 pose;
@@ -132,7 +138,7 @@ private:
     std::vector<kp_reloc_solution>  relocalization_withkeypoints_(Frame &curFrame, se3 &pose_f2g_out , const std::set<uint32_t> &excluded={});
     bool relocalize_withmarkers(Frame &f, se3 &pose_f2g_out) ;
     void drawMatchesAndMarkersInInputImage(cv::Mat &image,float inv_ScaleFactor )const;//return a drawable image from last process
-
+        /* 在输入图像中绘制匹配和标记 */
 
 
     // DEBUG
@@ -165,13 +171,13 @@ private:
     std::shared_ptr<MarkerDetector> marker_detector;
     //used internally
     Frame _cFrame,_prevFrame;//current and previous Frame
-    std::shared_ptr<MapInitializer> map_initializer;
+    std::shared_ptr<MapInitializer> map_initializer;// 06.16 system 地图初始化器，用于初始化地图
     bool isInitialized=false;
     se3 _curPose_f2g;//current pose
     int64_t _curKFRef=-1;//current reference key frame
     STATE currentState=STATE_LOST;
     MODES currentMode=MODE_SLAM;
-    std::shared_ptr<MapManager> TheMapManager;
+    std::shared_ptr<MapManager> TheMapManager;      // 06.16 system 地图管理器
     cv::Mat velocity;
     uint64_t totalNFramesProcessed=0;//not saved
     int64_t lastKFReloc=-1;

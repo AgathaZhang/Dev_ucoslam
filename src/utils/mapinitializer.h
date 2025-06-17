@@ -33,7 +33,7 @@ namespace ucoslam
 {
     typedef std::pair<int,int> Match;
     Frame _refFrame;
-     int _nAttempts=0;
+    int _nAttempts=0;
     FrameMatcher  fmatcher;
 
 public:

@@ -45,29 +45,48 @@ void MapInitializer::reset(){
     kfmatches.clear();
      _refFrame.clear();
 }
-bool MapInitializer::process(const Frame &frame, std::shared_ptr<Map>  map){
 
-    if(frame.und_kpts.size()<10 && _params.mode==KEYPOINTS) return false;
+/** 这段 MapInitializer::process 函数的作用可以用一句话概括为：
+
+根据当前帧和参考帧中的关键点或标记信息，尝试进行地图初始化；若首次进入则设定参考帧，若失败则根据参考信息判断是否重置参考帧。
+
+简要逻辑：
+
+如果关键点数量过少（小于10），直接放弃（关键点初始化模式）。
+
+如果允许单帧Aruco初始化，尝试使用Aruco初始化。
+
+如果是第一次进入，保存当前帧为参考帧。
+
+否则尝试用当前帧和参考帧配对初始化：
+
+若成功，初始化完成；
+
+若失败、又缺乏足够共视标记或匹配点，则更新参考帧为当前帧，准备下一次重试。*/ 
+bool MapInitializer::process(const Frame &frame, std::shared_ptr<Map> map){ // 06.16 input 当前帧和地图指针
+                                        
+    if(frame.und_kpts.size()<10 && _params.mode==KEYPOINTS) return false;// 如果是特征点初始化模式，但关键点太少，则放弃初始化
     //    //attempts initialization from only current frame
-    if (_params.allowArucoOneFrame)
-        if (aruco_one_frame_initialize(frame,map)) {
+    if (_params.allowArucoOneFrame)// 如果允许使用单帧 ArUco 初始化
+        if (aruco_one_frame_initialize(frame,map)) {    // TODO 06.17 尝试使用当前帧中的 ArUco 标记进行初始化
             _debug_msg_("initialization from single image using aruco");
-            return true;
+            std::cout << "[UcoSLAM] MapInitializer aruco_one_frame" << std::endl;
+            return true; 
         }
 
 
     //first time
-    if (!_refFrame.isValid()){
-        setReferenceFrame(frame);
+    if (!_refFrame.isValid()){      // 如果尚未设置参考帧（即是第一次处理）
+        setReferenceFrame(frame);   // 将当前帧设置为参考帧 mapinitializer._refFrame
         return false;
     }
-    else{
-        bool res= initialize_(frame, map);
+    else{                           // 如果已经设置了参考帧
+        bool res= initialize_(frame, map);  // TODO 06.17 尝试使用当前帧与参考帧进行 自然特征点 初始化
         //check if there any marker
 
-        if(!res){
+        if(!res){   // 如果初始化失败
             //check if any common marker between the frames
-            int nCommonMarkers=0;
+            int nCommonMarkers=0;   // 统计与参考帧的公共 ArUco 数量
             for(auto m:frame.markers)
                 if ( _refFrame.getMarkerIndex(m.id)!=-1 )nCommonMarkers++;
             if (kfmatches.size()<50 && nCommonMarkers==0){//not enough common references, reset reference frame
@@ -83,31 +102,31 @@ bool MapInitializer::process(const Frame &frame, std::shared_ptr<Map>  map){
 void MapInitializer::setReferenceFrame(const Frame &frame){
     kfmatches.clear();
     frame.copyTo(_refFrame);
-    if (_params.mode!=ARUCO && frame.ids.size()!=0){//there are keypoints
-         fmatcher.setParams(frame,FrameMatcher::MODE_ALL,_params.minDescDistance,_params.nn_match_ratio,true);
+    if (_params.mode!=ARUCO && frame.ids.size()!=0){    //there are keypoints
+        fmatcher.setParams(frame,FrameMatcher::MODE_ALL,_params.minDescDistance,_params.nn_match_ratio,true);
      }
 }
 
 //checks if the frame passed can be used to initialize with the second one
-bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
-    auto removeInvalidMatches=[&](){
+bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){ // TODO 06.17 用自然特征点初始化地图的细节
+    auto removeInvalidMatches=[&](){  // 定义一个 Lambda 匿名函数，用于清除无效匹配（闭包引用外部变量）
         //remove invalid matches
 
-        vector<cv::DMatch> validM;
-        vector<cv::Point3f> validP;
+        vector<cv::DMatch> validM;  // 用于存储有效的匹配
+        vector<cv::Point3f> validP; // 用于存储有效的三维点
 
-        for(size_t i=0;i<kfmatches.size();i++){
+        for(size_t i=0;i<kfmatches.size();i++){     // 遍历所有匹配 如果三维点中任意坐标为 NaN，则认为该匹配无效
             if(isnan(matches_3d[i].x) || isnan( matches_3d[i].y)||isnan(matches_3d[i].z))
             {
-                kfmatches[i].trainIdx=-1;
+                kfmatches[i].trainIdx=-1;    // 标记该匹配无效
             }
             else{
-                validM.push_back(kfmatches[i]);
-                validP.push_back(matches_3d[i]);
+                validM.push_back(kfmatches[i]);     // 添加有效匹配
+                validP.push_back(matches_3d[i]);    // 添加有效三维点
             }
         }
-        kfmatches=validM;
-        matches_3d=validP;
+        kfmatches=validM;  // 用有效匹配替换原匹配集
+        matches_3d=validP; // 用有效点替换原三维点集
     };
 
 
@@ -120,30 +139,32 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
         _debug_msg_("matches ="<<kfmatches.size());
     }
 
-
-
-
-    auto rt_mode=computeRt(_refFrame,  frame2, kfmatches,_params.minDistance);
-
+/** 接收一个新的当前帧以及参考帧和当前帧之间的匹配
+    返回参考帧和当前帧之间的rt矩阵。
+    if返回一个非空矩阵，表示初始化已经完成。
+    如果Rt是从标记计算的，则使用minDistance值来确定视图之间是否有足够的距离来接受结果*/
+    auto rt_mode=computeRt(_refFrame,  frame2, kfmatches,_params.minDistance);      // TODO 
+    // 估计两帧之间的相对位姿变换（Rt矩阵）并判断初始化类型（KEYPOINTS 或 MARKERS）
 
     __UCOSLAM_TIMER_EVENT__("computed rt");
-    if (rt_mode.first.empty())return false;
+    if(rt_mode.first.empty())return false;
     if(rt_mode.second==KEYPOINTS  && kfmatches.size()<_params.minNumMatches) return false;
 
 
-     //set proper ids
+    //set proper ids
     //add frames
-    Frame & kfframe1=map->addKeyFrame(_refFrame); //[frame2.idx]=frame2;
-     kfframe1.pose_f2g=cv::Mat::eye(4,4,CV_32F);
-    Frame & kfframe2= map->addKeyFrame(frame2); //[frame2.idx]=frame2;
-     kfframe2.pose_f2g=rt_mode.first;
+    Frame & kfframe1=map->addKeyFrame(_refFrame);   // 添加参考帧作为关键帧 [frame2.idx]=frame2;
+     kfframe1.pose_f2g=cv::Mat::eye(4,4,CV_32F);    // 参考帧的位姿是单位矩阵，表示它是地图的原点
+    Frame & kfframe2= map->addKeyFrame(frame2);     // 添加当前帧作为关键帧 [frame2.idx]=frame2;  默认这时候 .ids 与 .und_kpts 长度是对齐的
+    kfframe2.pose_f2g=rt_mode.first;                // 设置参考帧与当前帧之间的相对位姿
 
 
 
     //now, for each marker set the the frame info in which it has been seen
+    //现在，为每个标记设置它所见过的帧信息
      for(auto &marker:kfframe1.markers){
-         map->addMarker(marker);
-        map->addMarkerObservation(marker.id,kfframe1.idx);
+        map->addMarker(marker);         // 添加标记到地图将该帧中观测到的 ArUco Marker 添加进地图结构中（若之前未存在）
+        map->addMarkerObservation(marker.id,kfframe1.idx);      // 记录该 Marker 在关键帧 kfframe1 中被观测到，用于后续的定位与闭环检测
     }
      for(auto &marker:kfframe2.markers){
         map->addMarker(marker);
@@ -152,15 +173,17 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
 
      if(rt_mode.second==KEYPOINTS){//started with matches only
         _debug_msg_("Initialized from keypoints");
+        printf("MapInitializer: Initialized from keypoints with %zu matches\n", kfmatches.size());
         //need to calculate the markers locations
     }
     else{
         _debug_msg_("Initialized from markers");
-        if (frame2.ids.size()>0 &&_refFrame.ids.size()>0){
+        printf("MapInitializer: Initialized from markers with %zu matches\n", kfmatches.size());
+        if (frame2.ids.size()>0 &&_refFrame.ids.size()>0){      // 如果参考帧和当前帧都包含自然特征点
             //then, if there are two keyframes, lets match keypoints
-            kfmatches=fmatcher.matchEpipolar(frame2,FrameMatcher::MODE_ALL,rt_mode.first);
-            matches_3d=ucoslam::Triangulate(_refFrame,frame2,rt_mode.first,kfmatches);
-            removeInvalidMatches();
+            kfmatches=fmatcher.matchEpipolar(frame2,FrameMatcher::MODE_ALL,rt_mode.first);  // 进行极线匹配
+            matches_3d=ucoslam::Triangulate(_refFrame,frame2,rt_mode.first,kfmatches);      // 三角化计算匹配点的三维坐标
+            removeInvalidMatches();     // 剔除那些三角化失败的点（比如深度为 NaN 的点），清洗掉无效的匹配
 
         }
     }
@@ -170,15 +193,16 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
     for(auto m:_marker_se3){
         cout<<"mm :"<<m.first<<" "<<m.second<<endl;
         map->map_markers[ m.first ].pose_g2m= m.second;
+        /** pose_g2m 的命名表示的是从 全局坐标系（g）到 marker 坐标系（m） 的变换*/
     }
       //set the ids
-    for(size_t i=0;i<kfmatches.size();i++){
-        if (!isnan(matches_3d[i].x)){
-            auto &mp= map->addNewPoint(kfframe2.fseq_idx);
-            mp.kfSinceAddition=1;
-            mp.setCoordinates( matches_3d[i]);
-            map->addMapPointObservation(mp.id,kfframe1.idx,kfmatches[i].trainIdx);
-            map->addMapPointObservation(mp.id,kfframe2.idx,kfmatches[i].queryIdx);
+    for(size_t i=0;i<kfmatches.size();i++){     // 遍历所有匹配
+        if (!isnan(matches_3d[i].x)){           // 如果三维点有效（即不是 NaN）
+            auto &mp= map->addNewPoint(kfframe2.fseq_idx);      // 添加一个新的地图点
+            mp.kfSinceAddition=1;                               // 记录该地图点自添加以来的关键帧数量
+            mp.setCoordinates( matches_3d[i]);                  // 设置地图点的三维坐标
+            map->addMapPointObservation(mp.id,kfframe1.idx,kfmatches[i].trainIdx);      // 记录该地图点在参考帧中的观测
+            map->addMapPointObservation(mp.id,kfframe2.idx,kfmatches[i].queryIdx);      // 记录该地图点在当前帧中的观测
         }
     }
 

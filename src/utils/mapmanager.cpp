@@ -43,7 +43,7 @@ MapManager::~MapManager(){
     stop();
 }
 void MapManager::setParams(std::shared_ptr<Map> map, bool EnableLoopClosure){
-    TheMap=map;
+    TheMap=map;     // system ptr 给到 MapManager ptr
     _loopClosureEnabled=EnableLoopClosure;
     _TheLoopDetector=createLoopDetector(_loopClosureEnabled);
     _TheLoopDetector->setParams(map);
@@ -111,7 +111,10 @@ int MapManager::newFrame(Frame &kf, int32_t curkeyFrame  ){
 }
 
 
-
+/** 局部地图更新（local mapping）
+    三角化新点（三角形构图）
+    回环检测（如果启用）
+    局部BA优化*/
 bool MapManager::mapUpdate(   ){
 
     if (_curState!=WAITINGFORUPDATE)
@@ -174,9 +177,9 @@ bool MapManager::mapUpdate(   ){
 
 
 void MapManager::start(){
-    if (_TThread.joinable()) return;//is running
-    mustExit=false;
-    _TThread= std::thread([this]{ this->runThread();});
+    if (_TThread.joinable()) return;// is running
+    mustExit=false;                 // 将退出标志设为 false，为新启动的线程准备运行条件
+    _TThread= std::thread([this]{ this->runThread();});     // this == system ptr
 
 }
 void MapManager::stop(){
@@ -216,10 +219,21 @@ void MapManager::reset(){
 
 
 }
-
-
-
-Frame& MapManager::addKeyFrame(Frame *newPtrFrame){
+/** 
+    1 将新帧加入关键帧集合并记录其 ID
+        TheMap->addKeyFrame(...)
+        更新 _lastAddedKeyFrame、youngKeyFrames 集合
+    2 对关键点执行非极大值抑制（可选）
+    3 记录 MapPoint 观测（根据 .ids 关联）
+    4 处理 ArUco Marker：
+        添加 Marker 及其观测
+        若满足条件：初始化 marker 的 SE3 位姿（单帧或多视角方式）
+    5 若发现新 marker 且地图之前没有 marker，但已有点云，则进行：
+        marker-点云联合尺度校准（map scale estimation）
+        调用 TheMap->scale() 和 globalOptimization() 进行全图尺度调整*/
+        
+/** 将一帧图像作为关键帧加入地图，并更新地图中点、标记、观测、必要时重标定尺度*/
+Frame& MapManager::addKeyFrame(Frame *newPtrFrame){     // TODO 06.17 传入新帧指针并添加为关键帧
     auto getNOFValidMarkers=[this](){
         int nValidMarkers=0;
         for(auto &m:TheMap->map_markers)
@@ -384,7 +398,7 @@ Frame& MapManager::addKeyFrame(Frame *newPtrFrame){
     return newFrame;
 }
 
-void MapManager::mainFunction(){
+void MapManager::mainFunction(){    // TODO 地图管理器开启
     _hurryUp=false;
 
     //first check if any new frame to be inserted

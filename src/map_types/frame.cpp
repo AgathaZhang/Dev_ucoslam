@@ -27,32 +27,70 @@ Frame::Frame(){
     bowvector_level=std::make_shared<fbow::fBow2>();
 }
 
-void Frame::copyTo( Frame &f)const{
+// void Frame::copyTo( Frame &f)const{
 
-    f.idx=idx;
-    f.markers=markers;
-    f.keypoint_kdtree=keypoint_kdtree;
-    desc.copyTo(f.desc);
-    f.ids=ids;
+//     f.idx=idx;
+//     f.markers=markers;
+//     f.keypoint_kdtree=keypoint_kdtree;
+//     desc.copyTo(f.desc);
+//     f.ids=ids;
 
-    f.flags=flags;
-//    f.nonMaxima=nonMaxima;
-    pose_f2g.copyTo(f.pose_f2g);
-    f.und_kpts=und_kpts;
-    f.kpts=kpts;
-    f.depth=depth;
+//     f.flags=flags;
+// //    f.nonMaxima=nonMaxima;
+//     pose_f2g.copyTo(f.pose_f2g);
+//     f.und_kpts=und_kpts;
+//     f.kpts=kpts;
+//     f.depth=depth;
 
-    jpeg_buffer.copyTo(f.jpeg_buffer);
-    f.bowvector= std::make_shared<fbow::fBow>(*bowvector); ;
-    f.bowvector_level= std::make_shared<fbow::fBow2> (*bowvector_level);
-    f.fseq_idx=fseq_idx;
-    f. scaleFactors= scaleFactors;
-    f.imageParams=imageParams;//camera with which it was taken
-    f.frame_flags=frame_flags;
-    f.KpDescType=KpDescType;
-    f.minXY=minXY;
-    f.maxXY=maxXY;
- }
+//     jpeg_buffer.copyTo(f.jpeg_buffer);
+//     f.bowvector= std::make_shared<fbow::fBow>(*bowvector); ;
+//     f.bowvector_level= std::make_shared<fbow::fBow2> (*bowvector_level);
+//     f.fseq_idx=fseq_idx;
+//     f. scaleFactors= scaleFactors;
+//     f.imageParams=imageParams;//camera with which it was taken
+//     f.frame_flags=frame_flags;
+//     f.KpDescType=KpDescType;
+//     f.minXY=minXY;
+//     f.maxXY=maxXY;
+//  }
+/**
+ * @brief Frame::copyTo
+ * @param f 目标帧对象，将当前帧的所有数据成员拷贝到该对象中
+ *
+ * 该函数用于将当前帧的所有数据成员（如索引、标记、关键点、描述子等）拷贝到另一个帧对象中。
+ * 主要用于在处理过程中需要复制帧信息时使用。
+ */
+void Frame::copyTo(Frame &f) const {
+
+    f.idx = idx;                     // 拷贝帧的索引编号
+    f.markers = markers;             // 拷贝 ArUco 标记信息
+    f.keypoint_kdtree = keypoint_kdtree; // 拷贝关键点 KD 树（空间索引结构）
+    desc.copyTo(f.desc);                 // 拷贝描述子矩阵
+    f.ids = ids;                         // 拷贝关键点对应的 MapPoint ID
+
+    f.flags = flags;                     // 拷贝帧的标志位（状态控制）
+    // f.nonMaxima = nonMaxima; // 非极大值抑制标志（已注释）
+
+    pose_f2g.copyTo(f.pose_f2g);         // 拷贝相机位姿（从相机到全局的变换矩阵）
+    f.und_kpts = und_kpts;               // 拷贝去畸变后的关键点
+    f.kpts = kpts;                       // 拷贝原始关键点
+    f.depth = depth;                     // 拷贝深度信息（用于RGBD或深度相机）
+
+    jpeg_buffer.copyTo(f.jpeg_buffer);   // 拷贝压缩图像缓冲区（JPEG）
+
+    f.bowvector = std::make_shared<fbow::fBow>(*bowvector); // 拷贝词袋向量（BoW） 将当前帧的 BoW 向量赋值（深拷贝）给 _refFrame 实例
+    f.bowvector_level = std::make_shared<fbow::fBow2>(*bowvector_level); // 拷贝词袋层级向量（用于更精细匹配）
+
+    f.fseq_idx = fseq_idx;               // 拷贝帧的序列编号
+    f.scaleFactors = scaleFactors;       // 拷贝图像金字塔尺度因子
+
+    f.imageParams = imageParams;         // 拷贝相机内参和图像信息
+    f.frame_flags = frame_flags;         // 拷贝帧级别的标志位（例如是否为关键帧等）
+    f.KpDescType = KpDescType;           // 拷贝关键点描述子类型（如 ORB、BRISK）
+    f.minXY = minXY;                     // 拷贝图像边界左上角点
+    f.maxXY = maxXY;                     // 拷贝图像边界右下角点
+}
+
 
 
 Frame & Frame::operator=(const Frame &f){

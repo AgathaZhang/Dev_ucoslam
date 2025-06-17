@@ -238,8 +238,8 @@ void FrameExtractor::process_rgbd(const cv::Mat &image, const cv::Mat &depthImag
 void FrameExtractor::process(const cv::Mat &image, const ImageParams &ip,Frame &frame, uint32_t frameseq_idx)
 {
 
-    preprocessImages(_ucoslamParams.kptImageScaleFactor,  image,ip);
-    extractFrame(InputImages[0],frame,frameseq_idx);
+        preprocessImages(_ucoslamParams.kptImageScaleFactor,  image,ip);    // 对图像进行预处理（如缩放、灰度转换等）
+        extractFrame(InputImages[0],frame,frameseq_idx);                    // 从预处理后的图像中提取特征点与描述子
 }
 
 /**

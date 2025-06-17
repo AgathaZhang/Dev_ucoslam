@@ -28,9 +28,10 @@
 namespace ucoslam {
 
 //states in which the system can be
-enum STATE{STATE_TRACKING,STATE_LOST};
+enum STATE{STATE_TRACKING,STATE_LOST};  // STATE_TRACKING: the system is tracking the environment and can add new keyframes and points. STATE_LOST: the system has lost the tracking and cannot add new keyframes or points until it is reinitialized.
 //working modes of the system
-enum MODES{MODE_SLAM,MODE_LOCALIZATION};
+enum MODES{MODE_SLAM,MODE_LOCALIZATION};// MODE_SLAM: the system is in SLAM mode, adding keyframes and points to the map. MODE_LOCALIZATION: the system is in localization mode, trying to estimate the pose of the camera in a known map without adding new keyframes or points.
+// MODES_SLAM: 系统处于 SLAM 模式，添加关键帧和点到地图中。 MODE_LOCALIZATION: 系统处于定位模式，尝试在已知地图中估计相机的位姿，而不添加新的关键帧或点。
 
 /**
  * @brief The DescriptorTypes class defines types of descriptors that can be used for keypoints

@@ -57,6 +57,16 @@ public:
     enum FlagsTypes: uint8_t{FLAG_NONMAXIMA=0x01,FLAG_OUTLIER=0x02,FLAG_BAD=0x04};
 
     Frame();
+    /** 二者区别: 假设你从一个 rosbag 中连续采集图像帧：
+        第一帧图像（时间顺序）是 fseq_idx = 0
+        第二帧图像是 fseq_idx = 1
+        ……以此类推
+        但并不是每一帧都加入到了地图中成为关键帧。
+        比如：
+        第一帧和第三帧加入地图，分别对应 idx = 0, idx = 1
+        第二帧没加入地图，不分配 idx*/
+
+    /** 表示 当前帧在地图中（Map）中的唯一标识符。比如它作为关键帧加入 Map 后的编号。*/
     uint32_t idx=std::numeric_limits<uint32_t>::max();//frame identifier
     std::vector<ucoslam::MarkerObservation> markers;//set of orginal markers detected with in the image
     picoflann::KdTreeIndex<2,KdTreeKeyPoints> keypoint_kdtree;
@@ -69,7 +79,8 @@ public:
     cv::Mat jpeg_buffer;//grey image(it may not be stored)
     std::shared_ptr<fbow::fBow> bowvector;//bag of words histogram of the frame
     std::shared_ptr<fbow::fBow2> bowvector_level;//bag of words histogram of the frame
-    //identifier of the frame in the sequence in which it was captured.
+    //identifier of the frame in the sequence in which it was captured.帧在被捕获序列中的标识符
+    /** 表示 当前帧在图像捕获序列中的原始索引（即时间顺序编号），比如第几帧图像。*/
     uint32_t fseq_idx=std::numeric_limits<uint32_t>::max();
     //scale factor of the keypoint detector employed
     vector<float> scaleFactors;

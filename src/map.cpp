@@ -45,10 +45,10 @@ float Map::getTargetFocus()const{
 }
 
 //! \param camPos 3D position of the camera (i.e. translation)
-MapPoint & Map::addNewPoint(uint32_t frameSeqId){
-    auto it_idx=map_points.insert(MapPoint());
-    it_idx.first->id=it_idx.second;
-     return map_points[it_idx.second];
+MapPoint & Map::addNewPoint(uint32_t frameSeqId){   // frameSeqId 是传进来的参数，但在该函数内部未使用，可能用于后续关联
+    auto it_idx=map_points.insert(MapPoint());  // insert() 返回 (迭代器, 索引) 在 map_points 中插入一个新的 MapPoint，返回迭代器和分配的 id（下标）
+    it_idx.first->id=it_idx.second;             // 设置新 MapPoint 的 id 为其在 map_points 中的下标
+    return map_points[it_idx.second];           // 返回新插入的 MapPoint 的引用
 }
 
  Marker &Map::addMarker(const ucoslam::MarkerObservation &m){
@@ -380,6 +380,9 @@ uint64_t Map::getSignature(bool print)const{
      return sig;
 
 }
+/** “地图状态体检器”：它系统性验证了地图中关键帧、
+* 地图点、标记之间的关联关系是否正确、完整、无冗余或丢失，
+* 确保 SLAM 系统数据结构健壮可靠。” */ 
 
 bool Map::checkConsistency(bool checkCovisGraph,bool useMutex){
       std::unique_lock<std::mutex> lockconsistency(consitencyMutex);

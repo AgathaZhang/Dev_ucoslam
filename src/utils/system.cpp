@@ -68,28 +68,28 @@ System::~System(){
 
 
 void System::createFrameExtractor(){
-    _params.nthreads_feature_detector=max(1,_params.nthreads_feature_detector);
-    std::shared_ptr<Feature2DSerializable> fdetector=Feature2DSerializable::create(_params.kpDescriptorType );
-
-    fdetector->setParams(_params.extraParams);
-    _params.maxDescDistance=fdetector->getMinDescDistance();
-
-
-    fextractor->setParams(fdetector, _params,marker_detector);
-    fextractor->removeFromMarkers()=_params.removeKeyPointsIntoMarkers;
-    fextractor->detectMarkers()=_params.detectMarkers;
-    fextractor->detectKeyPoints()=_params.detectKeyPoints;
-
+    
+    _params.nthreads_feature_detector = std::max(1, _params.nthreads_feature_detector); // 保证至少使用1个线程进行特征提取
+    std::shared_ptr<Feature2DSerializable> fdetector = Feature2DSerializable::create(_params.kpDescriptorType); // 根据描述子类型（如orb）创建特征检测器
+    
+    fdetector->setParams(_params.extraParams); // 设置特征检测器的附加参数
+    _params.maxDescDistance = fdetector->getMinDescDistance(); // 设置最大描述子匹配距离（用于后续过滤）
+    
+    fextractor->setParams(fdetector, _params, marker_detector); // 将特征检测器、参数和marker检测器配置进fextractor
+    fextractor->removeFromMarkers() = _params.removeKeyPointsIntoMarkers; // 设置是否移除marker区域内的关键点
+    fextractor->detectMarkers() = _params.detectMarkers; // 设置是否启用marker检测
+    
+    fextractor->detectKeyPoints() = _params.detectKeyPoints; // 设置是否启用关键点检测
 }
 void System::setParams( std::shared_ptr<Map> map, const  Params &p,const string &vocabulary,std::shared_ptr<ucoslam::MarkerDetector> mdetector){
 
-    TheMap=map;
+    TheMap=map;     // 把node空间的map指针给到system空间06.16
 
 
-    _params=p;
+    _params=p;      // 作用是为system类静态成员变量分配内存并定义其内容 static成员变量是类的所有实例共享的，因此它们在内存中只存在一份。通过这种方式，所有System类的实例都可以访问和修改_params变量。
     marker_detector=mdetector;
     if(!marker_detector)
-        marker_detector=std::make_shared<ArucoMarkerDetector>(_params);
+        marker_detector=std::make_shared<ArucoMarkerDetector>(_params);     // 传递给 ArucoMarkerDetector 构造函数的参数
     createFrameExtractor();
 
     //now, the vocabulary
@@ -100,18 +100,18 @@ void System::setParams( std::shared_ptr<Map> map, const  Params &p,const string 
             TheMap->TheKFDataBase.loadFromFile(vocabulary);
         }
         MapInitializer::Params params;
-        if ( _params.forceInitializationFromMarkers)
-            params.mode=MapInitializer::ARUCO;
+        if ( _params.forceInitializationFromMarkers)        // 如果强制从标记初始化地图
+            params.mode=MapInitializer::ARUCO;              // 赋值枚举常量
         else
             params.mode=MapInitializer::BOTH;
 
-        params.minDistance= _params.minBaseLine;
-        params.markerSize=_params.aruco_markerSize;
-        params.aruco_minerrratio_valid= _params.aruco_minerrratio_valid;
-        params.allowArucoOneFrame=_params.aruco_allowOneFrameInitialization;
-        params.max_makr_rep_err=2.5;
-        params.minDescDistance=_params.maxDescDistance;
-        map_initializer->setParams(params);
+        params.minDistance= _params.minBaseLine;            // 最小基线距离
+        params.markerSize=_params.aruco_markerSize;         // 标记尺寸
+        params.aruco_minerrratio_valid= _params.aruco_minerrratio_valid;        // ArUco 最小误差比率
+        params.allowArucoOneFrame=_params.aruco_allowOneFrameInitialization;    // 允许单帧初始化
+        params.max_makr_rep_err=2.5;                                          // 最大标记重投影误差
+        params.minDescDistance=_params.maxDescDistance;                         // 最小描述子距离
+        map_initializer->setParams(params);     // 设置地图初始化参数06.16
     }
     else
         currentState=STATE_LOST;
@@ -146,33 +146,35 @@ void System::resetTracker(){
 
 
 cv::Mat System::process(const Frame &frame) {
-     assert(TheMap->checkConsistency());
-     se3 prevPose=_curPose_f2g;//pose computed
+    // 确保地图结构在进入主流程前是自洽的
+    assert(TheMap->checkConsistency());    // 地图状态体检器
+    se3 prevPose=_curPose_f2g;             // system 's 当前位姿，用于后续计算相对位移pose computed _curPose_f2g is in class system
 
     //copy the current frame if not calling from the other member funtion
-    if ((void*)&frame!=(void*)&_cFrame){//only if not calling from the other process member function
-        swap(_prevFrame,_cFrame);
-        _cFrame=frame;
+    
+    if ((void*)&frame!=(void*)&_cFrame){    // 如果当前 frame 非 _cFrame（即函数被外部调用而非自身重入），进行拷贝only if not calling from the other process member function
+        swap(_prevFrame, _cFrame);          // 保存上一帧
+        _cFrame = frame;                    // 当前帧更新
     }
 
-
-    _debug_exec(20, saveToFile("world-prev.ucs"););
+    // 调试用途，将世界状态保存为文件
+    _debug_exec(20, saveToFile("world-prev.ucs");); // TODO
 
 
 
     __UCOSLAM_ADDTIMER__;
 
     //Initialize other processes if not yet
-    if (currentMode==MODE_SLAM  && !TheMapManager->hasMap())
-        TheMapManager->setParams(TheMap,_params.enableLoopClosure);
-    if (!_params.runSequential && currentMode==MODE_SLAM )
-        TheMapManager->start();
+    if (currentMode==MODE_SLAM && !TheMapManager->hasMap())    // 如果当前是 SLAM 模式，且地图尚未初始化，则配置地图管理器
+        TheMapManager->setParams(TheMap,_params.enableLoopClosure/*启用闭环检测和校正*/);      // 主要设置TheLoopDetector
+    if (currentMode==MODE_SLAM && !_params.runSequential)      // 如果不是顺序运行，则开启地图管理线程
+        TheMapManager->start();                                                             // 主要开启 mainFunction();
 
     __UCOSLAM_TIMER_EVENT__  ("initialization");
     //update map if required
 
 
-    //remove possible references to removed mappoints in _prevFrame
+    // 清除 _prevFrame 中对已失效 MapPoint 的引用//remove possible references to removed mappoints in _prevFrame
     for(auto &id:_prevFrame.ids)
         if (id!=std::numeric_limits<uint32_t>::max()){
             if (!TheMap->map_points.is(id)) id=std::numeric_limits<uint32_t>::max();
@@ -187,14 +189,15 @@ cv::Mat System::process(const Frame &frame) {
 
 
 
-    //not initialized yet
-    if(TheMap->isEmpty() && currentMode==MODE_SLAM) {
+    // 如果地图为空且是 SLAM 模式，则初始化地图 not initialized yet
+    if(TheMap->isEmpty() && currentMode==MODE_SLAM) {     // frames.size()==0
         if ( initialize(_cFrame))
-            currentState=STATE_TRACKING;
+            currentState=STATE_TRACKING;     // 转为 跟踪  
+            std::cout << "[UcoSLAM] Initialization succeeded at frame: " << _cFrame.fseq_idx << std::endl; 
         __UCOSLAM_TIMER_EVENT__("initialization attempted");
     }
     else{
-        //tracking mode
+        // 跟踪状态：执行追踪 tracking mode
         if( currentState==STATE_TRACKING){
             _curKFRef=getBestReferenceFrame(_prevFrame,_curPose_f2g);
             _curPose_f2g=track(_cFrame,_curPose_f2g);
@@ -203,7 +206,7 @@ cv::Mat System::process(const Frame &frame) {
             if( !_curPose_f2g.isValid())
                 currentState=STATE_LOST;
         }
-        //lost??
+        // 丢失状态：尝试重定位
         if (currentState==STATE_LOST){
             se3 reloc_pose;
             if ( relocalize(_cFrame,reloc_pose)){//recovered
@@ -216,9 +219,10 @@ cv::Mat System::process(const Frame &frame) {
         }
 
 
-        //did properly recover??
+        // 如果已恢复追踪
         if( currentState==STATE_TRACKING){
             _cFrame.pose_f2g=_curPose_f2g;
+            // 判断是否需要加入新关键帧
             if (currentMode==MODE_SLAM  && (  ( _cFrame.fseq_idx>=lastKFReloc+5) || (lastKFReloc==-1)  ))//must add a new frame?
                TheMapManager->newFrame(_cFrame,_curKFRef);
             __UCOSLAM_TIMER_EVENT__("newFrame");
@@ -227,11 +231,11 @@ cv::Mat System::process(const Frame &frame) {
     }
 
     __UCOSLAM_TIMER_EVENT__("track/initialization done");
-
+    // 进一步一致性检查（在调试等级高时）
     assert(TheMap->checkConsistency(debug::Debug::getLevel()>=10));
 
 
-    //if lost after very few keyframes, reset map
+    // 如果地图只有少量关键帧且已丢失，则重置地图
     if( currentState==STATE_LOST && currentMode==MODE_SLAM && TheMap->keyframes.size()<=5 && TheMap->keyframes.size()!=0){
         TheMapManager->reset();
         TheMap->clear();
@@ -240,19 +244,21 @@ cv::Mat System::process(const Frame &frame) {
     }
 
 
-    //compute the velocity
+    // 计算相机速度（帧间相对位姿）
      if (currentState==STATE_TRACKING ){
         velocity=cv::Mat::eye(4,4,CV_32F);
         if ( prevPose.isValid()){
             velocity = _curPose_f2g.convert()*prevPose.convert().inv();
+            // std::cout << "Velocity matrix:\n" << velocity << std::endl;
          }
     }
     else{
         velocity=cv::Mat();
+        // std::cout << "Velocity matrix:\n" << velocity << std::endl;
 
     }
 
-
+    // 更新帧位姿
     _cFrame.pose_f2g=_curPose_f2g;
     _debug_msg_("camera pose="<<_curPose_f2g);
 
@@ -262,91 +268,116 @@ cv::Mat System::process(const Frame &frame) {
     if( ++totalNFramesProcessed> (10*4*12*34*6)/2)
         _curPose_f2g=cv::Mat();
 #endif
+    // 根据状态返回当前位姿或空
     if (currentState==STATE_LOST )return cv::Mat();
     else
-        return _curPose_f2g;
-
+        return _curPose_f2g;        // return 一个 SE3 位姿矩阵
 
 }
 
 
 
-cv::Mat System::process(  cv::Mat &InputImage, const ImageParams &img_params,uint32_t frameseq_idx, const cv::Mat & depth, const cv::Mat &RIn_image) {
+cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint32_t frameseq_idx, const cv::Mat &depth, const cv::Mat &RIn_image) {
+    
+    
+    __UCOSLAM_ADDTIMER__; // 启动全局计时器，用于调试性能分析 like function DebugTimer timer
 
+    // 参数合法性检查 若是RGBD相机，则img_params中必须包含基线（bl）参数
+    assert((img_params.bl > 0 && !depth.empty()) || depth.empty());
 
+    // 交换当前帧与上一帧的数据缓存
+    swap(_prevFrame, _cFrame);      // _cFrame：当前处理的图像帧 _prevFrame：上一帧（用于做匹配或估计相对运动）大量关键点、描述子、匹配信息等
 
-    __UCOSLAM_ADDTIMER__;
+    __UCOSLAM_TIMER_EVENT__("Input preparation");   // 准备输入数据
 
-    assert( (img_params.bl>0 && !depth.empty()) || depth.empty());//if rgbd, then ip must  have the params set
-
-    swap(_prevFrame,_cFrame);
-
-    __UCOSLAM_TIMER_EVENT__("Input preparation");
-    //update the map while processing this new frame to extract keypoints an markers
+    // 如果处于 SLAM 模式，异步更新地图
     std::thread UpdateThread;
-    if (currentMode==MODE_SLAM) UpdateThread=std::thread([&](){
-        if( TheMapManager->mapUpdate()){
-            if(TheMapManager->bigChange()){
-                _cFrame.pose_f2g= TheMapManager->getLastAddedKFPose();
-                _curPose_f2g=TheMapManager->getLastAddedKFPose();
+    if (currentMode == MODE_SLAM)
+        UpdateThread = std::thread([&]() {
+            if (TheMapManager->mapUpdate()) {
+                if (TheMapManager->bigChange()) {
+                    // 如果有重大更新，当前帧使用新关键帧的位姿作为初始姿态
+                    _cFrame.pose_f2g = TheMapManager->getLastAddedKFPose();
+                    _curPose_f2g = TheMapManager->getLastAddedKFPose();
+                }
             }
-        }
-        ;});
-    //determine the internal id that will be given to this frame
-    if (depth.empty() && RIn_image.empty()) fextractor->process(InputImage,img_params,_cFrame,frameseq_idx   );//c
-    else if(RIn_image.empty()) fextractor->process_rgbd(InputImage,depth,img_params,_cFrame,frameseq_idx );
-    else fextractor->processStereo(InputImage,RIn_image,img_params,_cFrame,frameseq_idx );
+        });
 
+    // 根据输入数据选择不同的特征提取器：单目、RGBD、双目
+    if (depth.empty() && RIn_image.empty())
+        fextractor->process(InputImage, img_params, _cFrame, frameseq_idx); // 单目图像处理 新图像填充到 _cFrame
+    else if (RIn_image.empty())
+        fextractor->process_rgbd(InputImage, depth, img_params, _cFrame, frameseq_idx); // RGBD 图像处理
+    else
+        fextractor->processStereo(InputImage, RIn_image, img_params, _cFrame, frameseq_idx); // 双目图像处理
 
-
-    if( _params.autoAdjustKpSensitivity){
-        //automatically adjust sensitivity
-        //if few keypoints, may be the scene is dark and needs increasing value
-        //auto adjust sensitivity by checking if it fits the desired number of keypoints
-        int missingKpts= _params.maxFeatures-_cFrame.und_kpts.size();
-        if(  missingKpts >0){
-            float perct=1.0f- (float(missingKpts)/float(_cFrame.und_kpts.size()));
-            float newSensitivity=fextractor->getSensitivity()+perct;
-            newSensitivity=std::max(newSensitivity,1.0f);
-            fextractor->setSensitivity( newSensitivity);
+    // 动态调整关键点提取的灵敏度（如果开启了自动调整）
+    if (_params.autoAdjustKpSensitivity) {
+        int missingKpts = _params.maxFeatures - _cFrame.und_kpts.size(); // 缺少的关键点数量
+        if (missingKpts > 0) {
+            // 提取关键点过少，提升灵敏度
+            float perct = 1.0f - float(missingKpts) / float(_cFrame.und_kpts.size());
+            float newSensitivity = fextractor->getSensitivity() + perct;
+            newSensitivity = std::max(newSensitivity, 1.0f);
+            fextractor->setSensitivity(newSensitivity);
+        } else {
+            // 数量合适，略微降低灵敏度避免过密
+            fextractor->setSensitivity(fextractor->getSensitivity() * 0.95f);
         }
-        else{//the number of points is correct
-            //if sensitivity is not at minimum, decrease it a little bit
-            fextractor->setSensitivity(fextractor->getSensitivity()*0.95);
-        }
-        _debug_msg_("KptDetector Sensitivity="<<fextractor->getSensitivity());
+        _debug_msg_("KptDetector Sensitivity=" << fextractor->getSensitivity());
     }
-    //
-    __UCOSLAM_TIMER_EVENT__("frame extracted ");
-    if (currentMode==MODE_SLAM)UpdateThread.join(); //wait for update
 
+    __UCOSLAM_TIMER_EVENT__("frame extracted");     // 提取关键点和描述子
 
-    cv::Mat result=process(_cFrame);
-    //draw matches in image
-    __UCOSLAM_TIMER_EVENT__("process");
+    // 等待地图更新线程完成
+    if (currentMode == MODE_SLAM)
+        UpdateThread.join();
 
-    float ImageScaleFactor= sqrt(float(_cFrame.imageParams.CamSize.area())/float(InputImage.size().area()));
+    // 对当前帧执行进一步处理（位姿估计、跟踪等）
+    cv::Mat result = process(_cFrame);      // 处理当前帧并返回估计的位姿
 
-    drawMatchesAndMarkersInInputImage(InputImage,1./ImageScaleFactor);
+    __UCOSLAM_TIMER_EVENT__("process");     // 处理当前帧 pose估计
 
+    // 图像缩放因子，用于等比缩放调试图
+    float ImageScaleFactor = sqrt(float(_cFrame.imageParams.CamSize.area()) / float(InputImage.size().area()));
 
-    auto _to_string=[](const uint32_t&val){ std::stringstream sstr;sstr<<val;return sstr.str();};
+    // 将关键点、匹配信息绘制在输入图像上
+    drawMatchesAndMarkersInInputImage(InputImage, 1.0f / ImageScaleFactor);
 
-    putText(InputImage,"Map Points:"+_to_string(TheMap->map_points.size()),cv::Point(20,InputImage.rows-20));
-    putText(InputImage,"Map Markers:"+_to_string(TheMap->map_markers.size()),cv::Point(20,InputImage.rows-40));
-    putText(InputImage,"KeyFrames:"+_to_string(TheMap->keyframes.size()),cv::Point(20,InputImage.rows-60));
-    int nmatches=0;
-    for(auto id:_cFrame.ids) if(id!=std::numeric_limits<uint32_t>::max()) nmatches++;
-    putText(InputImage,"Matches:"+  _to_string(nmatches),cv::Point(20,InputImage.rows-80));
-    if( fabs(ImageScaleFactor-1)>1e-3)
-        putText(InputImage,"Img.Size:"+_to_string(_cFrame.imageParams.CamSize.width)+"x"+_to_string(_cFrame.imageParams.CamSize.height),cv::Point(20,InputImage.rows-100));
+    // 辅助字符串转换 lambda
+    auto _to_string = [](const uint32_t& val) {
+        std::stringstream sstr;
+        sstr << val;
+        return sstr.str();
+    };
 
+    // 叠加地图信息统计文本
+    putText(InputImage, "Map Points:" + _to_string(TheMap->map_points.size()), cv::Point(20, InputImage.rows - 20));
+    putText(InputImage, "Map Markers:" + _to_string(TheMap->map_markers.size()), cv::Point(20, InputImage.rows - 40));
+    putText(InputImage, "KeyFrames:" + _to_string(TheMap->keyframes.size()), cv::Point(20, InputImage.rows - 60));
 
-    __UCOSLAM_TIMER_EVENT__("draw");
+    // 统计有效匹配点数
+    int nmatches = 0;
+    for (auto id : _cFrame.ids)
+        if (id != std::numeric_limits<uint32_t>::max())
+            nmatches++;
+    putText(InputImage, "Matches:" + _to_string(nmatches), cv::Point(20, InputImage.rows - 80));
 
-    return result;
+    // 如果图像经过缩放，也输出原始尺寸
+    if (fabs(ImageScaleFactor - 1) > 1e-3)
+        putText(InputImage, "Img.Size:" + _to_string(_cFrame.imageParams.CamSize.width) + "x" + _to_string(_cFrame.imageParams.CamSize.height),
+                cv::Point(20, InputImage.rows - 100));
 
+    __UCOSLAM_TIMER_EVENT__("draw");        // 绘制匹配和标记
+
+    std::cout << "Velocity: " << result << std::endl;
+    return result; 
+
+    // 相机的全局位姿变换矩阵 cv::Mat 类型，大小是 4×4，数据类型为 CV_32F
+    // 表示从当前帧到世界坐标系的变换 T_gf
+    // 返回处理后的结果（估计位姿矩阵）
 }
+
 
 
 void  System::putText(cv::Mat &im,string text,cv::Point p ){
@@ -445,56 +476,64 @@ cv::Mat System::getPoseFromMarkersInMap(const Frame &frame ){
 
 
 bool System::initialize( Frame &f2 ) {
-bool res;
-    if (f2.imageParams.isStereoCamera()){
+    bool res;
+    if (f2.imageParams.isStereoCamera()){   // 判断相机类型
           res=initialize_stereo(f2);
     }
     else{
-        res=initialize_monocular(f2);
+        res=initialize_monocular(f2);        // 单目初始化
     }
 
-    if(!res)return res;
-    _curPose_f2g= TheMap->keyframes.back().pose_f2g;
-    _curKFRef=TheMap->keyframes.back().idx;
-    _debug_msg_("Initialized");
-    isInitialized=true;
-    assert(TheMap->checkConsistency(true));
+    if(!res)return res;     // 如果初始化失败，直接返回 false
+    _curPose_f2g= TheMap->keyframes.back().pose_f2g;    // 如果初始化成功，设置当前帧的位姿为最后一个关键帧的位姿（用于后续的 Tracking）
+    _curKFRef=TheMap->keyframes.back().idx;             // 设置当前参考关键帧 ID（用于局部地图选择、BA等）
+    _debug_msg_("Initialized");                         // 打印调试信息：初始化成功
+    isInitialized=true;                                 // 标记系统已完成初始化
+    assert(TheMap->checkConsistency(true));             // 进行一次地图一致性检查（确保初始地图结构没有严重错误）
 
   return true;
 }
 
-bool System::initialize_monocular(Frame &f2 ){
+bool System::initialize_monocular(Frame &f2 ){  // 06.12 06.16 
 
     _debug_msg_("initialize   "<<f2.markers.size());
+    printf("Begin initialize monocular\n");
+    if (!map_initializer->process(f2,TheMap)) return false;     // 06.16 第一次只有一帧肯定都会失败
 
-    if (!map_initializer->process(f2,TheMap)) return false;
-
-      //If there keypoints  and at least 2 frames
+    // If there keypoints and at least 2 frames
     // set the ids of the visible elements in f2, which will used in tracking
-        if ( TheMap->keyframes.size()>1 && TheMap->map_points.size()>0){
-        f2.ids = TheMap->keyframes.back().ids;
-    }
+    // 它是将最近一个关键帧中的特征点 ids 复制给当前帧 f2，用于继承观测历史，帮助追踪或保持特征点 ID 的一致性。
+    if ( TheMap->keyframes.size()>1 && TheMap->map_points.size()>0){
+    f2.ids = TheMap->keyframes.back().ids;}     
+    /** .ids 与 .und_kpts 的长度一致性依赖于初始化阶段的流程约定.ids 与 .und_kpts 的长度一致性依赖于初始化阶段的流程约定*/
+    /** ids 是和 und_kpts（去畸变后的关键点）一一对应的，也就是说：
+    ids[i] 是第 i 个关键点 und_kpts[i] 所对应的 MapPoint 的 ID。
+    如果你强行把上一帧的 ids 赋给当前帧：
+    那么你相当于假设了 “这两帧的关键点顺序完全一致”，这在真实情况下不一定成立。
+    特别是如果帧间有运动、遮挡、光照变化，不同帧提取的关键点数量和顺序都可能不同。
+    ⚠️所以这种做法本质上是一个“权宜之计”或“初始化黑科技”， 只适用于当前这种 “两帧初始化、几乎共视、特征分布差不多” 的情况。*/
     assert(TheMap->checkConsistency());
 
 
-    globalOptimization();
-     assert(TheMap->checkConsistency(true));
-    //if only with matches, scale to have an appropriate mean
+    globalOptimization();   // TODO 全局优化，调整关键帧和地图点的位姿
+    assert(TheMap->checkConsistency(true));
+    // if only with matches, scale to have an appropriate mean
+    // 在没有Aruco标记的情况下，对地图进行尺度归一化（尺度矫正）
     if (TheMap->map_markers.size()==0){
-        if ( TheMap->map_points.size()<50) {//enough points after the global optimization??
+        if ( TheMap->map_points.size()<50) { //enough points after the global optimization??
             TheMap->clear();
             return false;
-        }
+        }// 如果没有地图标记（markers）且地图点太少，则清空地图
+
+        /** 如果没有地图标记,用中值深度初始化*/
+        float invMedianDepth=1./TheMap->getFrameMedianDepth(TheMap->keyframes.front().idx); // 中值深度并取倒数，作为尺度因子 
+        cv::Mat Tc2w=TheMap->keyframes.back().pose_f2g.inv(); // 获取最后一个关键帧的位姿并逆变换
 
 
-        float invMedianDepth=1./TheMap->getFrameMedianDepth(TheMap->keyframes.front().idx);
-        cv::Mat Tc2w=TheMap->keyframes.back().pose_f2g.inv();
-
-
-        //change the translation
+        // change the translation
         // Scale initial baseline
-        Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
-        TheMap->keyframes.back().pose_f2g=Tc2w.inv();
+        Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth; // 将这个关键帧的平移部分乘以尺度因子，完成归一化
+        TheMap->keyframes.back().pose_f2g=Tc2w.inv();   // 两次 inv() 是为了“绕开旋转矩阵”，只对平移分量进行缩放后再恢复原方向的位姿变换。
 
          // Scale points
          for(auto &mp:TheMap->map_points){
@@ -504,8 +543,8 @@ bool System::initialize_monocular(Frame &f2 ){
     }
 
     _curPose_f2g=TheMap->keyframes.back().pose_f2g;
-
-      return true;
+    printf("initialize monocular SUCCESS both ArUco or keypoint\n");   // 用自然特征点初始化和用二维码初始化成功的任意一种可能
+    return true;
 }
 
 

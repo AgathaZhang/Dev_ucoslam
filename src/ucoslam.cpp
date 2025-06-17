@@ -4,6 +4,7 @@
 namespace ucoslam{
 
 UcoSlam::UcoSlam(){
+    std::cout << "UcoSlam Object constructed!" << std::endl;
     impl=new System;
 
 }

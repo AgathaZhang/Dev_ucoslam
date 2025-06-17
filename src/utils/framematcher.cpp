@@ -197,12 +197,17 @@ void FrameMatcher_Flann::manageMode(FrameMatcher::Mode mode,const Frame &frame,v
 
 
 }
-void FrameMatcher_Flann::setParams(const Frame &trainFrame, FrameMatcher::Mode  mode,float minDescDist, float nn_match_ratio, bool checkOrientation , int maxOctaveDiff){
-    _minDescDist=minDescDist;
-    _nn_match_ratio=nn_match_ratio;
-    _checkOrientation=checkOrientation;
-    _maxOctaveDiff=maxOctaveDiff;
-    _trainImageParams=trainFrame.imageParams;
+void FrameMatcher_Flann::setParams(const Frame &trainFrame,     // 训练帧
+                                    FrameMatcher::Mode  mode,   // 模式（全部、已分配、未分配）
+                                    float minDescDist,          // 最小描述子距离
+                                    float nn_match_ratio,       // 最近邻匹配比率
+                                    bool checkOrientation,      // 是否检查方向
+                                    int maxOctaveDiff){         // 最大八度差
+    _minDescDist=minDescDist;                   // 最小描述子距离
+    _nn_match_ratio=nn_match_ratio;             // 最近邻匹配比率
+    _checkOrientation=checkOrientation;         // 是否检查方向
+    _maxOctaveDiff=maxOctaveDiff;               // 最大八度差
+    _trainImageParams=trainFrame.imageParams;   // 相机参数
     //determine which are used.
 
 
