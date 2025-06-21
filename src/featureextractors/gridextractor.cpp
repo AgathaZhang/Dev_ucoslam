@@ -23,6 +23,11 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <thread>
+// #include <opencv2/features2d.hpp> //self add 06.21 opencv features2d module
+#include <opencv2/xfeatures2d.hpp> //self add 06.21 opencv xfeatures2d module
+#include <opencv2/xfeatures2d/nonfree.hpp>
+
+
 
 #ifdef XFEATURES2D
 #include <opencv2/xfeatures2d.hpp>
@@ -101,7 +106,8 @@ void GridExtractor::createDetectors(Feature2DSerializable::FeatParams  param,cv:
         }break;
         case F2D_GRID_SURF:{
 #ifdef XFEATURES2D
-            _nOctaveLayers=4;
+            // _nOctaveLayers=4;            // 06.21 注释掉无用变量 
+            /** 作者可能想让 GridExtractor 类支持通过 _nOctaveLayers 控制 SURF 层数，但实现中并没有真正用它传入 SURF::create(...) */
             auto desc=cv::xfeatures2d::SURF::create();
             _fextractors.push_back(desc);
             _overlapborder=25;
@@ -110,7 +116,8 @@ void GridExtractor::createDetectors(Feature2DSerializable::FeatParams  param,cv:
 #endif
             }break;
         case F2D_GRID_SIFT:{
-            auto desc=cv::SIFT::create(gfeatures,param.nOctaveLevels,0.02,5,param.scaleFactor);
+            // auto desc=cv::SIFT::create(gfeatures,param.nOctaveLevels,0.02,5,param.scaleFactor);  // 06.21
+            auto desc=cv::xfeatures2d::SIFT::create(gfeatures,param.nOctaveLevels,0.02,5,param.scaleFactor);
             _fextractors.push_back(desc);
             _overlapborder=25;
 

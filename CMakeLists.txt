@@ -12,12 +12,12 @@ set(CMAKE_CXX_EXTENSIONS ON)        # 启用C++扩展，如 gnu++17，而非纯�
 set(CMAKE_CXX_STANDARD 17)          # 设置使用的C++标准为 C++17  
 
 # 设置编译选项，-g 用于生成调试信息 25.06.09
-add_compile_options(-g)
+# add_compile_options(-g)
 
 IF(NOT CMAKE_BUILD_TYPE )
-  #  SET( CMAKE_BUILD_TYPE "Release" )
+   SET( CMAKE_BUILD_TYPE "Release" )
 # else()
-   SET( CMAKE_BUILD_TYPE "Debug" )
+  #  SET( CMAKE_BUILD_TYPE "Debug" )
    message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 ENDIF()
 

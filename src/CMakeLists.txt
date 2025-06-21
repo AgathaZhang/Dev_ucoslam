@@ -1,10 +1,13 @@
 # 收集当前目录下所有 .h 和 .cpp 文件
 FILE(GLOB ucoslam_hdrs_base "*.h" )
 FILE(GLOB ucoslam_srcs_base "*.cpp")
+add_definitions(-DXFEATURES2D)      # 06.21 启用 XFeatures2D 特征提取器支持
 
 # 明确列出特征提取器相关的头文件和源文件
 SET(ucoslam_fextractors_hdr featureextractors/ORBextractor.h featureextractors/feature2dserializable.h )
 SET(ucoslam_fextractors_src featureextractors/ORBextractor.cpp featureextractors/feature2dserializable.cpp)
+
+# find_package(OpenCV 4.5.5 REQUIRED)         # 查找 OpenCV 4.5.5 版本 06.20
 
 # OpenCV版本高于3时才加入 gridextractor 模块
 # 条件编译，如果 OpenCV 大于3，加入额外的 grid 特征提取器。
@@ -49,6 +52,8 @@ target_include_directories(ucoslam PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../featureextractors>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../map_types>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../optimization>
+  # 添加本地安装的 opencv_xfeatures2d 头文件路径
+  /home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/include
 )
 
 
@@ -60,8 +65,20 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES 				  # create *nix style libra
     CLEAN_DIRECT_OUTPUT 1 					# 清理直接输出          # allow creating static and shared libs without conflicts
     OUTPUT_NAME "${PROJECT_NAME}${PROJECT_DLLVERSION}" 	          # 控制库的输出名称（加版本号后缀）# avoid conflicts between library and binary target names
     )
+
+# 06.21 添加本地构建的 opencv_xfeatures2d 库所在目录
+link_directories(/home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/lib)
+
 # 链接依赖库（OpenCV、Eigen等），这些库在 dependencies.cmake 中配置
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${UCOSLAM_REQUIRED_LIBRARIES} )
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} 
+        ${UCOSLAM_REQUIRED_LIBRARIES} 
+        # opencv_core
+        # opencv_features2d
+        # opencv_highgui
+        # opencv_imgcodecs
+        opencv_xfeatures2d
+        )
+# TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${OpenCV_LIBS})       # 链接 OpenCV 库 06.20
 
 # 安装规则（install）部分
 # 安装目标库文件（dll/so/a）到指定目录
