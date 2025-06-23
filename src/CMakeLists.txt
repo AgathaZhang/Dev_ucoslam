@@ -1,7 +1,13 @@
 # 收集当前目录下所有 .h 和 .cpp 文件
 FILE(GLOB ucoslam_hdrs_base "*.h" )
 FILE(GLOB ucoslam_srcs_base "*.cpp")
-add_definitions(-DXFEATURES2D)      # 06.21 启用 XFeatures2D 特征提取器支持
+# add_definitions(-DXFEATURES2D)      # 06.21 启用 XFeatures2D 特征提取器支持
+
+# add_definitions(-DEIGEN_DONT_ALIGN_STATICALLY)  # 06.23 解决 Eigen3 编译时的对齐问题
+add_compile_definitions(
+  EIGEN_DONT_ALIGN_STATICALLY
+  EIGEN_DONT_VECTORIZE
+)  # 06.23 解决 Eigen3 编译时的对齐问题
 
 # 明确列出特征提取器相关的头文件和源文件
 SET(ucoslam_fextractors_hdr featureextractors/ORBextractor.h featureextractors/feature2dserializable.h )
