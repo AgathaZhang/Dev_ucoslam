@@ -84,7 +84,7 @@ bool MapInitializer::process(const Frame &frame, std::shared_ptr<Map> map){ // 0
         bool res= initialize_(frame, map);  // TODO 06.17 尝试使用当前帧与参考帧进行 自然特征点 初始化
         //check if there any marker
 
-        if(!res){   // 如果初始化失败
+        if(!res){   // 如果初始化失败       // TODO 06.29晚
             //check if any common marker between the frames
             int nCommonMarkers=0;   // 统计与参考帧的公共 ArUco 数量
             for(auto m:frame.markers)
@@ -143,7 +143,7 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
     返回参考帧和当前帧之间的rt矩阵。
     if返回一个非空矩阵，表示初始化已经完成。
     如果Rt是从标记计算的，则使用minDistance值来确定视图之间是否有足够的距离来接受结果*/
-    auto rt_mode=computeRt(_refFrame,  frame2, kfmatches,_params.minDistance);      // TODO 
+    auto rt_mode=computeRt(_refFrame,  frame2, kfmatches,_params.minDistance);      // 06.30 完成于 07.01
     // 估计两帧之间的相对位姿变换（Rt矩阵）并判断初始化类型（KEYPOINTS 或 MARKERS）
 
     __UCOSLAM_TIMER_EVENT__("computed rt");
@@ -153,9 +153,9 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
 
     //set proper ids
     //add frames
-    Frame & kfframe1=map->addKeyFrame(_refFrame);   // 添加参考帧作为关键帧 [frame2.idx]=frame2;
-     kfframe1.pose_f2g=cv::Mat::eye(4,4,CV_32F);    // 参考帧的位姿是单位矩阵，表示它是地图的原点
-    Frame & kfframe2= map->addKeyFrame(frame2);     // 添加当前帧作为关键帧 [frame2.idx]=frame2;  默认这时候 .ids 与 .und_kpts 长度是对齐的
+    Frame& kfframe1 = map->addKeyFrame(_refFrame);  // 添加参考帧作为关键帧 [frame2.idx]=frame2;
+    kfframe1.pose_f2g=cv::Mat::eye(4,4,CV_32F);     // 参考帧的位姿是单位矩阵，表示它是地图的原点
+    Frame& kfframe2 = map->addKeyFrame(frame2);     // 添加当前帧作为关键帧 [frame2.idx]=frame2;  默认这时候 .ids 与 .und_kpts 长度是对齐的
     kfframe2.pose_f2g=rt_mode.first;                // 设置参考帧与当前帧之间的相对位姿
 
 
@@ -163,7 +163,7 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
     //now, for each marker set the the frame info in which it has been seen
     //现在，为每个标记设置它所见过的帧信息
      for(auto &marker:kfframe1.markers){
-        map->addMarker(marker);         // 添加标记到地图将该帧中观测到的 ArUco Marker 添加进地图结构中（若之前未存在）
+        map->addMarker(marker);         // 添加marker到地图将该帧中观测到的 ArUco Marker 添加进地图结构中（若之前未存在）
         map->addMarkerObservation(marker.id,kfframe1.idx);      // 记录该 Marker 在关键帧 kfframe1 中被观测到，用于后续的定位与闭环检测
     }
      for(auto &marker:kfframe2.markers){
@@ -175,35 +175,35 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
         _debug_msg_("Initialized from keypoints");
         printf("MapInitializer: Initialized from keypoints with %zu matches\n", kfmatches.size());
         //need to calculate the markers locations
-    }
-    else{
+    }// 只是打了个标记：后续要在增量建图阶段再继续做三角化
+    else{                             /** 如果是从marker反回来的位姿R|t，准的，直接三角化*/
         _debug_msg_("Initialized from markers");
         printf("MapInitializer: Initialized from markers with %zu matches\n", kfmatches.size());
         if (frame2.ids.size()>0 &&_refFrame.ids.size()>0){      // 如果参考帧和当前帧都包含自然特征点
             //then, if there are two keyframes, lets match keypoints
             kfmatches=fmatcher.matchEpipolar(frame2,FrameMatcher::MODE_ALL,rt_mode.first);  // 进行极线匹配
-            matches_3d=ucoslam::Triangulate(_refFrame,frame2,rt_mode.first,kfmatches);      // 三角化计算匹配点的三维坐标
-            removeInvalidMatches();     // 剔除那些三角化失败的点（比如深度为 NaN 的点），清洗掉无效的匹配
+            matches_3d=ucoslam::Triangulate(_refFrame,frame2,rt_mode.first/* 两帧间 R|t */,kfmatches);      // 三角化计算匹配点的三维坐标
+            removeInvalidMatches();     // TODO 06.27 剔除那些三角化失败的点（比如深度为 NaN 的点），清洗掉无效的匹配
 
         }
-    }
-
+    }/** m.first  是该 marker 的 ID*/
+     /** m.second 是该 marker 相对于 世界/全局坐标系 的 SE3 位姿*/
     //set markers locations given the established location in rt
     //add markers to the map
-    for(auto m:_marker_se3){
+    for(auto m:_marker_se3){        // 第一次填充在 ARUCO_initialize( ... , _marker_se3);
         cout<<"mm :"<<m.first<<" "<<m.second<<endl;
-        map->map_markers[ m.first ].pose_g2m= m.second;
+        map->map_markers[ m.first ].pose_g2m= m.second;     // 将 _marker_se3 中每个 ArUco Marker 的位姿赋值给 map 中对应 marker 的世界坐标系位姿（pose_g2m）
         /** pose_g2m 的命名表示的是从 全局坐标系（g）到 marker 坐标系（m） 的变换*/
     }
-      //set the ids
+      //set the ids 
     for(size_t i=0;i<kfmatches.size();i++){     // 遍历所有匹配
         if (!isnan(matches_3d[i].x)){           // 如果三维点有效（即不是 NaN）
-            auto &mp= map->addNewPoint(kfframe2.fseq_idx);      // 添加一个新的地图点
-            mp.kfSinceAddition=1;                               // 记录该地图点自添加以来的关键帧数量
-            mp.setCoordinates( matches_3d[i]);                  // 设置地图点的三维坐标
+            auto& mp = map->addNewPoint(kfframe2.fseq_idx);      // 添加一个新的地图点 return MapPoint& 
+            mp.kfSinceAddition=1;                                // 记录该地图点自添加以来的关键帧数量
+            mp.setCoordinates( matches_3d[i]);                   // 设置地图点的三维坐标
             map->addMapPointObservation(mp.id,kfframe1.idx,kfmatches[i].trainIdx);      // 记录该地图点在参考帧中的观测
             map->addMapPointObservation(mp.id,kfframe2.idx,kfmatches[i].queryIdx);      // 记录该地图点在当前帧中的观测
-        }
+        }   // 06.27晚上 07.01下午看完
     }
 
     assert(map->checkConsistency());
@@ -227,7 +227,15 @@ std::pair<cv::Mat,MapInitializer::MODE> MapInitializer::computeRt(const Frame &f
     if (_params.markerSize<=0)throw std::runtime_error(string(__PRETTY_FUNCTION__)+"Invalid marker size");
     //try first using aruco
     if (_params.mode==BOTH || _params.mode==ARUCO){
-        auto rt=ARUCO_initialize(frame1.markers,frame2.markers,frame1.imageParams.undistorted(),_params.markerSize,0.02,_params.max_makr_rep_err,_params.minDistance,_marker_se3);
+        auto rt = ARUCO_initialize(
+            frame1.markers,                        // 参考帧的所有 ArUco 标记
+            frame2.markers,                        // 当前帧的所有 ArUco 标记
+            frame1.imageParams.undistorted(),      // 参考帧的相机内参（去畸变版本）
+            _params.markerSize,                    // 已知的 ArUco 标记实际物理尺寸（单位：米）
+            0.02,                                  // 优化阈值（例如外点剔除时的容差）
+            _params.max_makr_rep_err,              // 最大允许的标记重投影误差
+            _params.minDistance,                   // 初始化时允许的最小相机平移距离（避免尺度退化）
+            _marker_se3);                          // 输出：保存每个已估计出的 marker 的位姿（g2m）
         if (!rt.empty())
                 return {rt,ARUCO};
     }
@@ -338,9 +346,9 @@ bool MapInitializer::getRtFromMatches(const cv::Mat &CamMatrix,const std::vector
     if(RH>0.40)
         result= ReconstructH(vbMatchesInliersH,H,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
     else //if(pF_HF>0.6)
-        result=ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
+        result= ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
 
-    if (result){
+    if (result){/** 实际操作了外部引用，有可能是冗余的带来开销上的副作用 通常是被外层 Triangulate 函数替代*/ 
         for(auto &m:vMatches12)
             if (!vbTriangulated[m.trainIdx])
                 m.queryIdx=m.trainIdx=-1;
@@ -1161,7 +1169,7 @@ void MapInitializer::DecomposeE(const cv::Mat &E, cv::Mat &R1, cv::Mat &R2, cv::
     if(cv::determinant(R2)<0)
         R2=-R2;
 }
-
+/** 只判断 含有marker 添加绑定*/
 bool MapInitializer::aruco_one_frame_initialize(const Frame &frame, std::shared_ptr<Map> map){
 //see if with the available markers, it is possible to do initialization
     //detect camera-poses and see if they are robust enough
@@ -1169,18 +1177,19 @@ bool MapInitializer::aruco_one_frame_initialize(const Frame &frame, std::shared_
     int nGoodMarkers=0;
     for(size_t m=0;m<frame.markers.size();m++){
         if ( frame.markers[m].poses.err_ratio> _params.aruco_minerrratio_valid)
+        /** 当前 ArUco marker 的重投影误差比例（err_ratio）是否大于设定的最小有效阈值（aruco_minerrratio_valid），用于判断这个标记位姿是否足够可靠*/
             nGoodMarkers++;
     }
-    if (nGoodMarkers==0)return false;
+    if (nGoodMarkers==0)return false;                           // 没有好的二维码 返回
 
-    auto &MapKeyFrame=map->addKeyFrame(frame);
+    auto& MapKeyFrame=map->addKeyFrame(frame);                  // 有好的二维码观测 添加关键帧 返回该帧引用 Frame&
     MapKeyFrame.pose_f2g=se3(0,0,0,0,0,0);
 
-    for(size_t m=0;m<frame.markers.size();m++){
-        auto &MapMarker=map->addMarker( frame.markers[m]);
-        map->addMarkerObservation(MapMarker.id,MapKeyFrame.idx);
+    for(size_t m=0;m<frame.markers.size();m++){                 // 处理二维码部分
+        auto& MapMarker = map->addMarker( frame.markers[m]);    // 总返回这个Marker
+        map->addMarkerObservation(MapMarker.id,MapKeyFrame.idx);        // 将一个已存在的 Marker（通过 MapMarker.id 表示）与一个关键帧（通过 MapKeyFrame.idx 表示）建立观测关联
         if ( frame.markers[m].poses.err_ratio> _params.aruco_minerrratio_valid)
-            MapMarker.pose_g2m=frame.markers[m].poses.sols[0];
+            MapMarker.pose_g2m=frame.markers[m].poses.sols[0];          // 调用 PnP 求解得到 poses.sols（常见是 sols[0] 是最优解）
         }
     return true;
 

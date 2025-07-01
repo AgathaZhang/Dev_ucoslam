@@ -52,9 +52,9 @@ void MapManager::setParams(std::shared_ptr<Map> map, bool EnableLoopClosure){
 uint32_t MapManager::getLastAddedKeyFrameIdx()const{return _lastAddedKeyFrame;}
 bool MapManager::hasMap()const{ return !(!TheMap);}
 
-std::shared_ptr<BaseLoopDetector> MapManager::createLoopDetector(bool loopClosureEnabled){
-     if(loopClosureEnabled) return std::make_shared<LoopDetector>();
-    else return std::make_shared<UselessLoopDetector>();
+std::shared_ptr<BaseLoopDetector> MapManager::createLoopDetector(bool loopClosureEnabled){      // 用基类指针接，向上转型（upcasting）
+    if(loopClosureEnabled) return std::make_shared<LoopDetector>();         // 有用的LoopDetector
+    else return std::make_shared<UselessLoopDetector>();                    // 无用的LoopDetector
 }
 
 

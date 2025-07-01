@@ -72,17 +72,20 @@ void System::createFrameExtractor(){
     _params.nthreads_feature_detector = std::max(1, _params.nthreads_feature_detector); // 保证至少使用1个线程进行特征提取
     std::shared_ptr<Feature2DSerializable> fdetector = Feature2DSerializable::create(_params.kpDescriptorType); // 根据描述子类型（如orb）创建特征检测器
     
-    fdetector->setParams(_params.extraParams); // 设置特征检测器的附加参数
+    fdetector->setParams(_params.extraParams);                 // 设置特征检测器的附加参数
     _params.maxDescDistance = fdetector->getMinDescDistance(); // 设置最大描述子匹配距离（用于后续过滤）
     
     fextractor->setParams(fdetector, _params, marker_detector); // 将特征检测器、参数和marker检测器配置进fextractor
     fextractor->removeFromMarkers() = _params.removeKeyPointsIntoMarkers; // 设置是否移除marker区域内的关键点
     fextractor->detectMarkers() = _params.detectMarkers; // 设置是否启用marker检测
-    
+    /** 将右边的值赋给 detectMarkers() 返回的可赋值的成员变量引用*/
     fextractor->detectKeyPoints() = _params.detectKeyPoints; // 设置是否启用关键点检测
 }
-void System::setParams( std::shared_ptr<Map> map, const  Params &p,const string &vocabulary,std::shared_ptr<ucoslam::MarkerDetector> mdetector){
-
+void System::setParams( std::shared_ptr<Map> map,        /* 地图*/ 
+     const  Params &p,                                   /* 参数*/ 
+     const string &vocabulary,                           /* 词典*/ 
+     std::shared_ptr<ucoslam::MarkerDetector> mdetector){/* 默认值参数 标志探测器指针*/
+                                                           
     TheMap=map;     // 把node空间的map指针给到system空间06.16
 
 
@@ -94,7 +97,7 @@ void System::setParams( std::shared_ptr<Map> map, const  Params &p,const string 
 
     //now, the vocabulary
 
-    if (TheMap->isEmpty()){//Need to start from zero
+    if (TheMap->isEmpty()){                                 // Need to start from zero
         currentState=STATE_LOST;
         if (!vocabulary.empty()  ){
             TheMap->TheKFDataBase.loadFromFile(vocabulary);
@@ -105,13 +108,13 @@ void System::setParams( std::shared_ptr<Map> map, const  Params &p,const string 
         else
             params.mode=MapInitializer::BOTH;
 
-        params.minDistance= _params.minBaseLine;            // 最小基线距离
-        params.markerSize=_params.aruco_markerSize;         // 标记尺寸
+        params.minDistance= _params.minBaseLine;                                // 最小基线距离
+        params.markerSize=_params.aruco_markerSize;                             // 标记尺寸
         params.aruco_minerrratio_valid= _params.aruco_minerrratio_valid;        // ArUco 最小误差比率
         params.allowArucoOneFrame=_params.aruco_allowOneFrameInitialization;    // 允许单帧初始化
-        params.max_makr_rep_err=2.5;                                          // 最大标记重投影误差
+        params.max_makr_rep_err=2.5;                                            // 最大标记重投影误差
         params.minDescDistance=_params.maxDescDistance;                         // 最小描述子距离
-        map_initializer->setParams(params);     // 设置地图初始化参数06.16
+        map_initializer->setParams(params);                                     // 设置地图初始化参数06.16
     }
     else
         currentState=STATE_LOST;
@@ -151,7 +154,7 @@ cv::Mat System::process(const Frame &frame) {
     se3 prevPose=_curPose_f2g;             // system 's 当前位姿，用于后续计算相对位移pose computed _curPose_f2g is in class system
 
     //copy the current frame if not calling from the other member funtion
-    
+    // TODO 复习
     if ((void*)&frame!=(void*)&_cFrame){    // 如果当前 frame 非 _cFrame（即函数被外部调用而非自身重入），进行拷贝only if not calling from the other process member function
         swap(_prevFrame, _cFrame);          // 保存上一帧
         _cFrame = frame;                    // 当前帧更新
@@ -290,11 +293,11 @@ cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint
 
     __UCOSLAM_TIMER_EVENT__("Input preparation");   // 准备输入数据
 
-    // 如果处于 SLAM 模式，异步更新地图
+    // 如果处于 SLAM 模式，异步更新地图     对于用KEYPOINTS初始化的情况，三角化放到这里
     std::thread UpdateThread;
     if (currentMode == MODE_SLAM)
         UpdateThread = std::thread([&]() {
-            if (TheMapManager->mapUpdate()) {
+            if (TheMapManager->mapUpdate()) {       // 增量建图 1 新增MapPoint（增量三角化）2 更新Map结构 3 检查回环、大变动、关键帧筛选等
                 if (TheMapManager->bigChange()) {
                     // 如果有重大更新，当前帧使用新关键帧的位姿作为初始姿态
                     _cFrame.pose_f2g = TheMapManager->getLastAddedKFPose();
@@ -343,7 +346,7 @@ cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint
 
     // 将关键点、匹配信息绘制在输入图像上
     drawMatchesAndMarkersInInputImage(InputImage, 1.0f / ImageScaleFactor);
-
+    /** 在输入图像上根据当前状态（初始化/跟踪）把当前帧的关键点匹配结果（Map点）和检测到的 ArUco Marker 画出来*/
     // 辅助字符串转换 lambda
     auto _to_string = [](const uint32_t& val) {
         std::stringstream sstr;
@@ -359,7 +362,7 @@ cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint
     // 统计有效匹配点数
     int nmatches = 0;
     for (auto id : _cFrame.ids)
-        if (id != std::numeric_limits<uint32_t>::max())
+        if (id != std::numeric_limits<uint32_t>::max()) // 特征点到地图点的映射 index
             nmatches++;
     putText(InputImage, "Matches:" + _to_string(nmatches), cv::Point(20, InputImage.rows - 80));
 
@@ -494,7 +497,7 @@ bool System::initialize( Frame &f2 ) {
   return true;
 }
 
-bool System::initialize_monocular(Frame &f2 ){  // 06.12 06.16 
+bool System::initialize_monocular(Frame &f2 ){          // 06.12 06.16 
 
     _debug_msg_("initialize   "<<f2.markers.size());
     printf("Begin initialize monocular\n");

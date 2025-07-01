@@ -641,11 +641,14 @@ cv::Point3f angular_error_minimization(cv::Point3f point, const vector<se3> &pos
 }
 
 
-cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers1,
-                                      const std::vector<ucoslam::MarkerObservation> &markers2,
-                                      const ucoslam::ImageParams &cp, float markerSize,
-                                      float  minCornerPixDist,float repj_err_Thres, float minDistance,
-                                      std::map<uint32_t,se3> &_marker_poses){
+cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers1,          // 参考帧中的 ArUco 标记观测信息
+                                    const std::vector<ucoslam::MarkerObservation> &markers2,// 当前帧中的 ArUco 标记观测信息
+                                    const ucoslam::ImageParams &cp,                         // 相机内参（已去畸变）
+                                    float markerSize,                                       // ArUco 标记的实际物理尺寸（单位：米）
+                                    float minCornerPixDist,                                 // 最小角点像素距离阈值（用于排除过近的角点）
+                                    float repj_err_Thres,                                   // 标记重投影误差阈值
+                                    float minDistance,                                      // 最小允许相机间平移距离（避免尺度退化）
+                                    std::map<uint32_t,se3> &_marker_poses){                 // 输出：保存每个有效 marker 的位姿（Map: marker ID -> SE3）
 
     const std::vector<ucoslam::MarkerObservation> &ms1_in=markers1;
     const std::vector<ucoslam::MarkerObservation> &ms2_in=markers2;
@@ -666,7 +669,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
         ms2.push_back( ms2_in[m.second]);
     }
     std::vector<cv::Point2f> p2d_v1,p2d_v2;
-    for(auto m: ms1)p2d_v1.insert(p2d_v1.end(),m.und_corners.begin(),m.und_corners.end());
+    for(auto m: ms1)p2d_v1.insert(p2d_v1.end(),m.und_corners.begin(),m.und_corners.end());      // 存下的四个角点
     for(auto m: ms2)p2d_v2.insert(p2d_v2.end(),m.und_corners.begin(),m.und_corners.end());
 
     //compute average pixel distance to avoid computing from too near views
@@ -676,7 +679,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
     avrgPixDist/=float(p2d_v1.size());
   _debug_msg("avrgPixDist=" << avrgPixDist,10);
   //too near?
-  if (avrgPixDist< minCornerPixDist*cp.CamSize.width ) return cv::Mat();
+  if (avrgPixDist< minCornerPixDist*cp.CamSize.width/* 相机图像的宽度*/ ) return cv::Mat();
 
 
 
@@ -687,12 +690,12 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
     for(size_t i=0;i<ms1.size();i++){
         marker_poses_v1.push_back(IPPE::solvePnP_(markerSize,ms1[i].und_corners,cp.CameraMatrix,cp.Distorsion));
         marker_poses_v2.push_back(IPPE::solvePnP_(markerSize,ms2[i].und_corners,cp.CameraMatrix,cp.Distorsion));
-    }
-
+    }   /** 相机坐标系相对于单个平面标记坐标系的位姿（marker → camera）*/
+        /** 使用了 IPPE 双解（Inner Pose and Outer Pose）来提高在近正视情况下的鲁棒性*/
 
     _debug_exec(10,for(size_t i=0;i<marker_poses_v1.size();i++)cout<<marker_poses_v1[i][1].second/marker_poses_v1[i][0].second<< "-" <<marker_poses_v2[i][1].second/marker_poses_v2[i][0].second<<endl;);
 
-   auto get_marker_points=[](float ms){
+   auto get_marker_points=[](float ms){/*是函数对象闭包，不是裸的C函数指针*/
         return vector<cv::Point3f>({ cv::Point3f(-ms/2.,ms/2.,0), cv::Point3f(ms/2.,ms/2.,0),
                     cv::Point3f(ms/2.,-ms/2.,0),cv::Point3f(-ms/2.,-ms/2.,0)});
     };
@@ -708,7 +711,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
 
 //    };
 
-  auto repj_err=[&](const cv::Mat &rt_totest){
+  auto repj_err=[&](const cv::Mat &rt_totest){/** 用来计算一个候选相对位姿 rt_totest 在两个相机之间重投影所有标记点后的平均投影误差，用于评估该位姿是否合理*/
       //for each marker, get the 3d points in camera 2, and project to camera 1 using rt_totest
      double sumerr=0;
      for(size_t i=0;i<ms1.size();i++){
@@ -722,7 +725,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
      return sumerr/float(ms1.size());
 
  };
-
+/** 遍历所有两帧匹配到的标记姿态组合，计算候选相对位姿 rt 及其重投影误差，并保存有效解集 sol_err*/
     //now, calculate all possible solutions and evaluate them
     struct pinfo{
         cv::Mat v1_c2m,v2_c2m;
@@ -736,7 +739,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
                 pinfo pi;
                 pi.v1_c2m=marker_poses_v1[i][k].first;
                 pi.v2_c2m=marker_poses_v2[i][j].first;
-                pi.rt=   pi.v2_c2m*pi.v1_c2m.inv();
+                pi.rt=   pi.v2_c2m*pi.v1_c2m.inv();         /** 真正的两帧位姿计算，两帧共视同一marker*/
 
                 pi.err=repj_err(pi.rt);
                 if(!std::isnan(pi.err) && !std::isinf(pi.err)) sol_err.push_back(pi);
@@ -752,9 +755,9 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
      auto best_sol=sol_err.front();
      if( best_sol.err < repj_err_Thres){
          //has enough distance between the views??
-         auto curBaseLine=cv::norm(best_sol.rt.rowRange(0,3).colRange(3,4));
+         auto curBaseLine=cv::norm(best_sol.rt.rowRange(0,3).colRange(3,4));// 计算这个平移向量t的欧几里得范数
          if (curBaseLine>=minDistance){
-
+            /** 在基线距离足够大时，比较双向投影，自动选择每个 ArUco 标记最优的世界坐标系下的姿态解*/
              for(size_t i=0;i<ms1.size();i++){
                  //solution a, project and get error
                  auto p3d=get_marker_points(markerSize);

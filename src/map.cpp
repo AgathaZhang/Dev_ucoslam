@@ -45,16 +45,16 @@ float Map::getTargetFocus()const{
 }
 
 //! \param camPos 3D position of the camera (i.e. translation)
-MapPoint & Map::addNewPoint(uint32_t frameSeqId){   // frameSeqId 是传进来的参数，但在该函数内部未使用，可能用于后续关联
+MapPoint& Map::addNewPoint(uint32_t frameSeqId){   // frameSeqId 是传进来的参数，但在该函数内部未使用，可能用于后续关联
     auto it_idx=map_points.insert(MapPoint());  // insert() 返回 (迭代器, 索引) 在 map_points 中插入一个新的 MapPoint，返回迭代器和分配的 id（下标）
     it_idx.first->id=it_idx.second;             // 设置新 MapPoint 的 id 为其在 map_points 中的下标
     return map_points[it_idx.second];           // 返回新插入的 MapPoint 的引用
 }
 
- Marker &Map::addMarker(const ucoslam::MarkerObservation &m){
-     if( !map_markers.is(m.id))
-         map_markers.insert( {m.id,m});
-     return map_markers[m.id];
+ Marker& Map::addMarker(const ucoslam::MarkerObservation &m){
+     if( !map_markers.is(m.id))               // 如果地图中还没有 ID 为 m.id 的 marker，才执行插入
+         map_markers.insert( {m.id,m});       // 插入一个新 marker，键是 m.id，值是 marker 观测 m，初始化 marker 对象
+     return map_markers[m.id];                // 返回这个 marker 的引用（无论是新建的还是已有的）
  }
 
 
@@ -72,17 +72,17 @@ MapPoint & Map::addNewPoint(uint32_t frameSeqId){   // frameSeqId 是传进来�
      marker.frames.insert(KeyFrame);
  }
 
-  Frame &Map::addKeyFrame(const Frame&f ){
+ Frame& Map::addKeyFrame(const Frame&f ){
 
       __UCOSLAM_ADDTIMER__
      assert(getTargetFocus()<0 || fabs( getTargetFocus()-f.imageParams.fx())<10);//
 
      if (getTargetFocus()>0)
          if ( fabs( getTargetFocus()-f.imageParams.fx())>10) throw std::runtime_error("Map::addKeyFrame keyframes added should have a similar focus than these already in the dataset");
-             //we must be sure that the id is correct (returns the id, and must be the same already used)
+            //we must be sure that the id is correct (returns the id, and must be the same already used)
      uint32_t kf_id=keyframes.addFrame(f);
      //work with the new frame, and free the pointer
-     Frame &newFrame=keyframes[kf_id];
+     Frame& newFrame=keyframes[kf_id];
       newFrame.idx=kf_id;
      //add it to the database
      __UCOSLAM_TIMER_EVENT__("addFrame");
