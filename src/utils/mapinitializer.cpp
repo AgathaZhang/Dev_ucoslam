@@ -74,23 +74,25 @@ bool MapInitializer::process(const Frame &frame, std::shared_ptr<Map> map){ // 0
             return true; 
         }
 
-
-    //first time
+    // 如果第一帧选得不好 这里要做鲁棒性重选 07.02留 （超时未初始化重新 setReferenceFrame？）
+    // 1 如果在初始化阶段摄像头正在发生快速的位姿变动，导致选择的那个固定参考帧和和后续的帧根本没有足够的共视特征，kfmatches会不好，永远匹配不上后续的帧，if(!res)会重置setReferenceFrame
+    // 2 两帧位移量没够，小于阈值，或条件没满足，没有很好的完成三角化，会重复initialize，内部计数器？
+    // first time
     if (!_refFrame.isValid()){      // 如果尚未设置参考帧（即是第一次处理）
         setReferenceFrame(frame);   // 将当前帧设置为参考帧 mapinitializer._refFrame
         return false;
     }
     else{                           // 如果已经设置了参考帧
         bool res= initialize_(frame, map);  // TODO 06.17 尝试使用当前帧与参考帧进行 自然特征点 初始化
-        //check if there any marker
+        //check if there any marker         // 没算出rt_mode 就会false
 
         if(!res){   // 如果初始化失败       // TODO 06.29晚
             //check if any common marker between the frames
             int nCommonMarkers=0;   // 统计与参考帧的公共 ArUco 数量
             for(auto m:frame.markers)
                 if ( _refFrame.getMarkerIndex(m.id)!=-1 )nCommonMarkers++;
-            if (kfmatches.size()<50 && nCommonMarkers==0){//not enough common references, reset reference frame
-                setReferenceFrame(frame);
+            if (kfmatches.size()<50 && nCommonMarkers==0){  // not enough common references, reset reference frame
+                setReferenceFrame(frame);                   // 没有共视marker会重置_refFrame(marker端鲁棒)，kfmatches匹配点少，表示共视不好也鲁棒了
                 _debug_msg_("Restart initialization");
             }
         }
@@ -103,7 +105,7 @@ void MapInitializer::setReferenceFrame(const Frame &frame){
     kfmatches.clear();
     frame.copyTo(_refFrame);
     if (_params.mode!=ARUCO && frame.ids.size()!=0){    //there are keypoints
-        fmatcher.setParams(frame,FrameMatcher::MODE_ALL,_params.minDescDistance,_params.nn_match_ratio,true);
+        fmatcher.setParams(frame,FrameMatcher::MODE_ALL,_params.minDescDistance,_params.nn_match_ratio,true);   // 07.02留 这里要关注一下
      }
 }
 
@@ -147,7 +149,7 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
     // 估计两帧之间的相对位姿变换（Rt矩阵）并判断初始化类型（KEYPOINTS 或 MARKERS）
 
     __UCOSLAM_TIMER_EVENT__("computed rt");
-    if(rt_mode.first.empty())return false;
+    if(rt_mode.first.empty())return false;      // 只要不为空 就表示初始化成功了
     if(rt_mode.second==KEYPOINTS  && kfmatches.size()<_params.minNumMatches) return false;
 
 
@@ -191,8 +193,8 @@ bool MapInitializer::initialize_(const Frame &frame2, std::shared_ptr<Map> map){
     //set markers locations given the established location in rt
     //add markers to the map
     for(auto m:_marker_se3){        // 第一次填充在 ARUCO_initialize( ... , _marker_se3);
-        cout<<"mm :"<<m.first<<" "<<m.second<<endl;
-        map->map_markers[ m.first ].pose_g2m= m.second;     // 将 _marker_se3 中每个 ArUco Marker 的位姿赋值给 map 中对应 marker 的世界坐标系位姿（pose_g2m）
+        cout<<"mm :"<<m.first<<" "<<m.second<<endl;//TODO 解引用时为什么能这样返值
+        map->map_markers[ m.first ].pose_g2m= m.second;     // 从这个容器里，找到并返回对应 ID 的 Marker 对象的引用 将 _marker_se3 中每个 ArUco Marker 的位姿赋值给 map 中对应 marker 的世界坐标系位姿（pose_g2m）
         /** pose_g2m 的命名表示的是从 全局坐标系（g）到 marker 坐标系（m） 的变换*/
     }
       //set the ids 

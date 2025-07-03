@@ -753,7 +753,7 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
      _debug_exec(10, for(auto pi:sol_err)cout<<"pi.err="<<pi.err<<" ";cout<<endl;);
      //has a low repoj error?
      auto best_sol=sol_err.front();
-     if( best_sol.err < repj_err_Thres){
+     if( best_sol.err < repj_err_Thres){    // 小鱼标记重投影误差阈值
          //has enough distance between the views??
          auto curBaseLine=cv::norm(best_sol.rt.rowRange(0,3).colRange(3,4));// 计算这个平移向量t的欧几里得范数
          if (curBaseLine>=minDistance){
@@ -776,10 +776,10 @@ cv::Mat  ARUCO_initialize(const std::vector<ucoslam::MarkerObservation> &markers
                  _debug_msg("err1_2:"<<err1<<" "<<err2,10);
                  //get the best solution
                  if (err1<err2){
-                      _marker_poses.insert({ms1[i].id,  se3(pose1) });
+                    _marker_poses.insert({ms1[i].id,  se3(pose1) });
                  }
                  else
-                     _marker_poses.insert({ms1[i].id, se3(marker_poses_v1[i][0].first)});
+                    _marker_poses.insert({ms1[i].id, se3(marker_poses_v1[i][0].first)});
 
 
              }

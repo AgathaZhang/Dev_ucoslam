@@ -202,7 +202,7 @@ cv::Mat System::process(const Frame &frame) {
     else{
         // 跟踪状态：执行追踪 tracking mode
         if( currentState==STATE_TRACKING){
-            _curKFRef=getBestReferenceFrame(_prevFrame,_curPose_f2g);
+            _curKFRef=getBestReferenceFrame(_prevFrame,_curPose_f2g);       // 参考关键帧的更新
             _curPose_f2g=track(_cFrame,_curPose_f2g);
             _debug_msg_("current pose="<<_curPose_f2g);
             __UCOSLAM_TIMER_EVENT__("track");
@@ -251,7 +251,7 @@ cv::Mat System::process(const Frame &frame) {
      if (currentState==STATE_TRACKING ){
         velocity=cv::Mat::eye(4,4,CV_32F);
         if ( prevPose.isValid()){
-            velocity = _curPose_f2g.convert()*prevPose.convert().inv();
+            velocity = _curPose_f2g.convert()*prevPose.convert().inv();/** 表示从前一帧相机坐标系到当前帧相机坐标系的变换矩阵，即相机在相邻两帧之间的相对运动，也就是 相机的位姿变化量，velocity*/
             // std::cout << "Velocity matrix:\n" << velocity << std::endl;
          }
     }
@@ -279,7 +279,7 @@ cv::Mat System::process(const Frame &frame) {
 }
 
 
-
+/** 返回全局位姿*/ 
 cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint32_t frameseq_idx, const cv::Mat &depth, const cv::Mat &RIn_image) {
     
     
@@ -373,7 +373,7 @@ cv::Mat System::process(cv::Mat &InputImage, const ImageParams &img_params, uint
 
     __UCOSLAM_TIMER_EVENT__("draw");        // 绘制匹配和标记
 
-    std::cout << "Velocity: " << result << std::endl;
+    // std::cout << "Pose c2g: " << result << std::endl;
     return result; 
 
     // 相机的全局位姿变换矩阵 cv::Mat 类型，大小是 4×4，数据类型为 CV_32F
@@ -487,8 +487,8 @@ bool System::initialize( Frame &f2 ) {
         res=initialize_monocular(f2);        // 单目初始化
     }
 
-    if(!res)return res;     // 如果初始化失败，直接返回 false
-    _curPose_f2g= TheMap->keyframes.back().pose_f2g;    // 如果初始化成功，设置当前帧的位姿为最后一个关键帧的位姿（用于后续的 Tracking）
+    if(!res)return res;                      // 如果初始化失败，直接返回 false
+    _curPose_f2g= TheMap->keyframes.back().pose_f2g;    // *如果初始化成功，设置当前帧的位姿为最后一个关键帧的位姿（用于后续的 Tracking）
     _curKFRef=TheMap->keyframes.back().idx;             // 设置当前参考关键帧 ID（用于局部地图选择、BA等）
     _debug_msg_("Initialized");                         // 打印调试信息：初始化成功
     isInitialized=true;                                 // 标记系统已完成初始化
