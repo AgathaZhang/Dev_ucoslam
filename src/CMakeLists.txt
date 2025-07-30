@@ -17,7 +17,10 @@ SET(ucoslam_fextractors_src featureextractors/ORBextractor.cpp featureextractors
 
 # OpenCV版本高于3时才加入 gridextractor 模块
 # 条件编译，如果 OpenCV 大于3，加入额外的 grid 特征提取器。
-IF(${OpenCV_VERSION} STRGREATER 3)
+
+# 这里可能写法不对
+# IF(${OpenCV_VERSION} STRGREATER 3)
+IF(DEFINED OpenCV_VERSION AND OpenCV_VERSION VERSION_GREATER "3.0.0")
     SET(ucoslam_fextractors_hdr ${ucoslam_fextractors_hdr} featureextractors/gridextractor.h )
     SET(ucoslam_fextractors_src ${ucoslam_fextractors_src} featureextractors/gridextractor.cpp )
 ENDIF()
@@ -53,13 +56,13 @@ ADD_LIBRARY(${PROJECT_NAME}
 # 设置库 25.06.10
 target_include_directories(ucoslam PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../utils>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../basictypes>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../featureextractors>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../map_types>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../optimization>
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../utils>
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../basictypes>
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../featureextractors>
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../map_types>
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../optimization>
   # 添加本地安装的 opencv_xfeatures2d 头文件路径
-  /home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/include
+  # /home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/include
 )
 
 
@@ -73,7 +76,7 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES 				  # create *nix style libra
     )
 
 # 06.21 添加本地构建的 opencv_xfeatures2d 库所在目录
-link_directories(/home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/lib)
+# link_directories(/home/kilox/cloud_mapping/src/ucoslam2/3rdparty/comp/local_install/opencv_xfeatures2d/lib)
 
 # 链接依赖库（OpenCV、Eigen等），这些库在 dependencies.cmake 中配置
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} 

@@ -27,6 +27,22 @@ namespace ucoslam{
 void Feature2DSerializable::detectAndCompute(cv::InputArray image, cv::InputArray mask, std::vector<cv::KeyPoint>& keypoints,
                                               cv::OutputArray descriptors, FeatParams params  ){
 
+    /** Agatha 25.07.28*/
+    // 安全性检查：图像是否为空
+    // if (image.empty()) {
+    //     std::cerr << "[Feature2DSerializable] WARNING: Input image is empty. Skipping keypoint detection." << std::endl;
+    //     return;
+    // }
+
+    // // 检查图像类型是否合理（可选）
+    // if (image.kind() != cv::_InputArray::MAT) {
+    //     std::cerr << "[Feature2DSerializable] WARNING: Input is not a valid cv::Mat. Got kind = "
+    //               << image.kind() << std::endl;
+    //     return;
+    // }
+    /** Agatha 25.07.28*/
+    auto itype = image.kind();      // FIXME: 检查此处bug
+    cv::Mat date = image.getMat();
     detectAndCompute_impl(image,mask,keypoints,descriptors,params);
 }
 

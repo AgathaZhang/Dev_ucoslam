@@ -27,6 +27,7 @@ IF(NOT CMAKE_BUILD_TYPE )
 ENDIF()
 
 #------------------------------------------------------
+# find_package(OpenCV 4.2.0 REQUIRED)    # 07.24 单独指定uco的opencv版本
 # Lib Names and Dirs
 #------------------------------------------------------
 # 包含 CMake 子模块：选项定义（如 BUILD_UTILS）、编译器设置和依赖配置

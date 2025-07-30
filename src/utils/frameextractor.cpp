@@ -63,7 +63,8 @@ void FrameExtractor::fromStream(std::istream &str){
     _ucoslamParams.fromStream(str);
 }
 
-FrameExtractor::FrameExtractor(){
+FrameExtractor::FrameExtractor(){ 
+    // _fdetector = std::make_shared<ucoslam::Feature2DSerializable>();      // FIXME 在构造函数中初始化看看 07.27
 }
 
 
@@ -334,6 +335,12 @@ void FrameExtractor::extractFrame(const ImgInfo &Iinfo,   Frame &frame, uint32_t
 
     std::thread aruco_thread( [&]{
         if (_detectMarkers){
+            /** Agatha 25.07.28*/
+            // if (Iinfo.im_org.empty()) {
+            // std::cerr << "[UcoSLAM] WARNING: im_org is empty, skipping marker detection." << std::endl;
+            // return;
+            // }
+            /** Agatha 25.07.28*/ 
             auto markers=_mdetector->detect(Iinfo.im_org);
             for(const auto&m:markers){
                 ucoslam::MarkerObservation uslm_marker;

@@ -2,8 +2,13 @@
 #   Find Dependencies
 # ----------------------------------------------------------------------------
 # set(OpenCV_DIR "/home/kilox/workspace/3rdparty/opencv-4.5.5/lib/cmake/opencv4")
-set(OpenCV_DIR "/usr/lib/x86_64-linux-gnu/cmake/opencv4")
-find_package(OpenCV 4.2.0 REQUIRED)
+# set(OpenCV_DIR "/usr/lib/x86_64-linux-gnu/cmake/opencv4")# 统一库07.28
+# find_package(OpenCV 4.2.0 REQUIRED)         # 统一库07.28
+
+set(OpenCV_DIR "/usr/local/lib")            # 统一库07.24
+find_package(OpenCV 3.4.0 REQUIRED)         # 统一库07.24
+
+
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 SET(UCOSLAM_REQUIRED_LIBRARIES ${OpenCV_LIBS})
 
