@@ -17,8 +17,6 @@ SET(ucoslam_fextractors_src featureextractors/ORBextractor.cpp featureextractors
 
 # OpenCV版本高于3时才加入 gridextractor 模块
 # 条件编译，如果 OpenCV 大于3，加入额外的 grid 特征提取器。
-
-# 这里可能写法不对
 # IF(${OpenCV_VERSION} STRGREATER 3)
 IF(DEFINED OpenCV_VERSION AND OpenCV_VERSION VERSION_GREATER "3.0.0")
     SET(ucoslam_fextractors_hdr ${ucoslam_fextractors_hdr} featureextractors/gridextractor.h )
@@ -53,7 +51,11 @@ ADD_LIBRARY(${PROJECT_NAME}
             ${ucoslam_opt_src} 
             ${ucoslam_opt_hdr})
 
-# 设置库 25.06.10
+#   设置库 25.06.10   新发现 07.24 如果注释掉这一段target_include_directories就编译出错
+
+#   当这个 target (ucoslam) 被别的 target 引用（作为 target_link_libraries 的依赖）时，在 构建阶段 提供
+#   ${CMAKE_CURRENT_SOURCE_DIR} 作为 include path
+
 target_include_directories(ucoslam PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../utils>
@@ -81,6 +83,7 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES 				  # create *nix style libra
 # 链接依赖库（OpenCV、Eigen等），这些库在 dependencies.cmake 中配置
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} 
         ${UCOSLAM_REQUIRED_LIBRARIES} 
+        # ${OpenCV_LIBS}
         # opencv_core
         # opencv_features2d
         # opencv_highgui
