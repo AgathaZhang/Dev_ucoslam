@@ -35,6 +35,9 @@ class Map;
 class FrameExtractor;
 class   System{
     friend class ucoslam_Debugger;
+public:/** Agatha*/
+    STATE getCurrentState() const { return currentState; }
+
 public:
 
     //

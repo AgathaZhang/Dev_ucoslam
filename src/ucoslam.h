@@ -102,6 +102,8 @@ public:
     //will update the internal parameters.Not all parameters can be changed
     void updateParams(const Params &p);
 
+    /** Agatha add for LVIO use*/
+    STATE getTrackingState() const;
 private:
     void *impl;         // 内部私有指针成员 void* impl
 

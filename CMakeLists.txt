@@ -4,10 +4,10 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5) # 最低CMake版本要求
 
 # add_definitions(-DEIGEN_DONT_ALIGN_STATICALLY)  # 06.23 解决 Eigen3 编译时的对齐问题
-add_compile_definitions(
-  EIGEN_DONT_ALIGN_STATICALLY
-  EIGEN_DONT_VECTORIZE
-)  # 06.23 解决 Eigen3 编译时的对齐问题
+# add_compile_definitions(
+#   EIGEN_DONT_ALIGN_STATICALLY
+#   EIGEN_DONT_VECTORIZE
+# )  # 06.23 解决 Eigen3 编译时的对齐问题
 
 project(ucoslam VERSION "1.1.1" LANGUAGES CXX)  # 定义项目名称、版本和使用的语言
 set(PROJECT_SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")  # 定义项目的SOVERSION（共享库版本控制）

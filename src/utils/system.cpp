@@ -517,7 +517,7 @@ bool System::initialize_monocular(Frame &f2 ){          // 06.12 06.16
     ⚠️所以这种做法本质上是一个“权宜之计”或“初始化黑科技”， 只适用于当前这种 “两帧初始化、几乎共视、特征分布差不多” 的情况。*/
     assert(TheMap->checkConsistency());
 
-
+    // FIXME 07.31 这里入口出现eigen3对齐错误 07.31关掉globalOptimization
     globalOptimization();   // TODO 全局优化，调整关键帧和地图点的位姿
     assert(TheMap->checkConsistency(true));
     // if only with matches, scale to have an appropriate mean

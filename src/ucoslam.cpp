@@ -104,4 +104,8 @@ std::string UcoSlam::getSignatureStr()const{
     return reinterpret_cast<System*>(impl)->getSignatureStr();
 
 }
+/** Agatha add for LVIO use*/
+STATE UcoSlam::getTrackingState() const{
+    return reinterpret_cast<System*>(impl)->getCurrentState();
+}//returns the current state of the system
 }

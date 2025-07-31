@@ -64,7 +64,6 @@ void FrameExtractor::fromStream(std::istream &str){
 }
 
 FrameExtractor::FrameExtractor(){ 
-    // _fdetector = std::make_shared<ucoslam::Feature2DSerializable>();      // FIXME 在构造函数中初始化看看 07.27
 }
 
 

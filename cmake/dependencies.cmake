@@ -50,9 +50,11 @@ ENDIF()
 
 
 IF(NOT BUILD_OWN_G2O)
+    message(STATUS "--------------------Building G2O from USER/LIB--------------------")
     link_directories(${G2O_DIR}/lib)
     include_directories(${G2O_DIR}/include)
 ELSE ()
+    message(STATUS "--------------------Building G2O from 3rdparty--------------------")
     include_directories(3rdparty/g2o/)
     ADD_SUBDIRECTORY(3rdparty/g2o/g2o)
 ENDIF()

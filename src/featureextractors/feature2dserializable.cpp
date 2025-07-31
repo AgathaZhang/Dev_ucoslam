@@ -40,9 +40,10 @@ void Feature2DSerializable::detectAndCompute(cv::InputArray image, cv::InputArra
     //               << image.kind() << std::endl;
     //     return;
     // }
+    // auto itype = image.kind();      // FIXME: 检查此处bug
+    // cv::Mat date = image.getMat();
     /** Agatha 25.07.28*/
-    auto itype = image.kind();      // FIXME: 检查此处bug
-    cv::Mat date = image.getMat();
+
     detectAndCompute_impl(image,mask,keypoints,descriptors,params);
 }
 
